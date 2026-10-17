@@ -1222,7 +1222,10 @@
           <p style="margin-top:12px;">Spot the pattern: with a <strong>1-period start threshold</strong>, continuous latency is always ≈ <strong>4× the cold latency</strong> — and that 4 is just the period count. This is the core low-latency tuning tradeoff in one table: a <strong>small threshold</strong> buys a snappy startup, a <strong>big buffer</strong> buys glitch-free running — and steady-state delay is the price you pay for both.</p>
 
           <h4 style="margin:22px 0 6px; font-size:17px;">🧮 Try it yourself: the latency calculator</h4>
-          <p>Same math as the table, but with the dials in your hands. Pick a sample rate, period size, period count, and start threshold — the buffer size and both latencies update live. It starts on the table's own settings (48 kHz, 256-frame periods, 4 periods, 1-period threshold). Now drag the threshold all the way up to the full buffer and watch the two latencies meet.</p>
+          <p>Same math as the table, but with the dials in your hands. Pick a sample rate, period size, period count, and start threshold — or set the <strong>buffer size</strong> directly: since buffer size = period size × period count, dragging it moves the period count to match (period size stays put, rounded to a whole number of periods). It starts on the table's own settings (48 kHz, 256-frame periods, 4 periods, 1-period threshold). Now drag the threshold all the way up to the full buffer and watch the two latencies meet.</p>
+          <div class="callout" style="margin-top:12px;">
+            <p><strong>The key relationship: latency (ms) = frames ÷ sample rate.</strong> The sample rate is a clock speed — how many frames the hardware consumes per second — so the same frame count represents <em>less time</em> at a higher rate: 1,024 frames is <b>21.3 ms at 48 kHz</b> but <b>64 ms at 16 kHz</b>. That's why changing only the sample rate moves every latency here, even when the period size doesn't budge.</p>
+          </div>
           <div class="lab" style="margin-top:12px;">
             <div>
               <canvas class="scope" id="calcScope"></canvas>
@@ -1249,11 +1252,18 @@
                 <input type="range" id="calcCnt" min="2" max="16" step="1" value="4" />
               </div>
               <div class="ctl">
+                <label>Buffer size <span class="val" id="calcBufVal">1,024 frames · 21.3 ms</span></label>
+                <input type="range" id="calcBuf" min="512" max="4096" step="256" value="1024" />
+              </div>
+              <div class="ctl">
                 <label>Start threshold <span class="val" id="calcThrVal">1 period · 256 frames</span></label>
                 <input type="range" id="calcThr" min="1" max="4" step="1" value="1" />
               </div>
               <div class="readout" id="calcReadout"></div>
             </div>
+          </div>
+          <div class="callout" style="margin-top:14px;">
+            <p><strong>Real-world note — the two sides never agree on a chunk size, and that's the point.</strong> The Android audio framework typically hands audio down in <b>480-sample writes — 10 ms at 48 kHz</b> — and it keeps writing 480 at a time no matter what ALSA is configured with underneath: period size 256 or 1,024 frames, the framework's writes don't change. That mismatch is exactly what the ring buffer exists to absorb. It <strong>decouples</strong> the framework's write quantum from the hardware's DMA period size: the small writes accumulate in the ring, and the hardware drains it one period at a time, so neither side ever has to match the other's chunk size. Which is why the calculator above has no "write size" dial — the framework's 480-sample writes don't set your latency. <strong>The ALSA buffer and period configuration does.</strong></p>
           </div>
         </div>
 
@@ -2895,7 +2905,7 @@
       (function calcLab() {
         const perEl = $("#calcPer");
         if (!perEl) return;
-        const cntEl = $("#calcCnt"), thrEl = $("#calcThr"), cv = $("#calcScope");
+        const cntEl = $("#calcCnt"), thrEl = $("#calcThr"), bufEl = $("#calcBuf"), cv = $("#calcScope");
         let rate = 48000;
         function vals() {
           const per = +perEl.value, cnt = +cntEl.value;
@@ -2949,6 +2959,8 @@
           const v = vals();
           $("#calcPerVal").textContent = v.per.toLocaleString() + " frames";
           $("#calcCntVal").textContent = v.cnt + " periods";
+          bufEl.min = v.per * 2; bufEl.max = v.per * 16; bufEl.step = v.per; bufEl.value = v.bufF;
+          $("#calcBufVal").textContent = v.bufF.toLocaleString() + " frames · " + v.bufMs.toFixed(1) + " ms";
           $("#calcThrVal").textContent = v.thrP + (v.thrP === 1 ? " period" : " periods") + " · " + v.thrF.toLocaleString() + " frames";
           const verdict = v.thrF < v.bufF
             ? "Continuous &gt; cold — because start threshold (<b>" + v.thrF.toLocaleString() + " frames</b>) &lt; buffer size (<b>" + v.bufF.toLocaleString() + " frames</b>): playback starts before the ring is full, but once streaming, every sample waits behind the <b>nearly full</b> buffer."
@@ -2967,6 +2979,14 @@
           render();
         }));
         perEl.addEventListener("input", render);
+        bufEl.addEventListener("input", () => {
+          const per = +perEl.value;
+          const cnt = Math.max(2, Math.min(16, Math.round(+bufEl.value / per)));
+          cntEl.value = cnt;
+          thrEl.max = cnt;
+          if (+thrEl.value > cnt) thrEl.value = cnt;
+          render();
+        });
         thrEl.addEventListener("input", render);
         cntEl.addEventListener("input", () => {
           thrEl.max = +cntEl.value;
