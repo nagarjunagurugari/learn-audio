@@ -1220,6 +1220,41 @@
             <p><strong>The rule:</strong> continuous latency is higher than cold latency <strong>exactly when start_threshold &lt; buffer_size</strong>. Set the start threshold equal to the full buffer and the two are <strong>equal</strong> — playback can't begin until the ring is completely full, so the first sample waits behind the whole buffer, just like every sample after it.</p>
           </div>
           <p style="margin-top:12px;">Spot the pattern: with a <strong>1-period start threshold</strong>, continuous latency is always ≈ <strong>4× the cold latency</strong> — and that 4 is just the period count. This is the core low-latency tuning tradeoff in one table: a <strong>small threshold</strong> buys a snappy startup, a <strong>big buffer</strong> buys glitch-free running — and steady-state delay is the price you pay for both.</p>
+
+          <h4 style="margin:22px 0 6px; font-size:17px;">🧮 Try it yourself: the latency calculator</h4>
+          <p>Same math as the table, but with the dials in your hands. Pick a sample rate, period size, period count, and start threshold — the buffer size and both latencies update live. It starts on the table's own settings (48 kHz, 256-frame periods, 4 periods, 1-period threshold). Now drag the threshold all the way up to the full buffer and watch the two latencies meet.</p>
+          <div class="lab" style="margin-top:12px;">
+            <div>
+              <canvas class="scope" id="calcScope"></canvas>
+              <p class="kbd-note">Amber cells are filled when playback starts (the threshold); the pale cells only fill up once the stream is running — which is exactly why the two latencies differ.</p>
+            </div>
+            <div class="controls">
+              <div class="ctl">
+                <label style="margin-bottom:7px;">Sample rate</label>
+                <div class="seg" id="calcRates">
+                  <button class="btn" data-rate="8000">8 kHz</button>
+                  <button class="btn" data-rate="16000">16 kHz</button>
+                  <button class="btn" data-rate="24000">24 kHz</button>
+                  <button class="btn" data-rate="44100">44.1 kHz</button>
+                  <button class="btn on" data-rate="48000">48 kHz</button>
+                  <button class="btn" data-rate="96000">96 kHz</button>
+                </div>
+              </div>
+              <div class="ctl">
+                <label>Period size <span class="val" id="calcPerVal">256 frames</span></label>
+                <input type="range" id="calcPer" min="64" max="4096" step="64" value="256" />
+              </div>
+              <div class="ctl">
+                <label>Period count <span class="val" id="calcCntVal">4 periods</span></label>
+                <input type="range" id="calcCnt" min="2" max="16" step="1" value="4" />
+              </div>
+              <div class="ctl">
+                <label>Start threshold <span class="val" id="calcThrVal">1 period · 256 frames</span></label>
+                <input type="range" id="calcThr" min="1" max="4" step="1" value="1" />
+              </div>
+              <div class="readout" id="calcReadout"></div>
+            </div>
+          </div>
         </div>
 
         <h3>Why 16 kHz for voice calls, 24 kHz for voice recognition — and 48 kHz for music?</h3>
@@ -2854,6 +2889,92 @@
         }));
         readout(); draw();
         window.addEventListener("resize", draw);
+      })();
+
+      /* ---------- 11b-2 · cold vs continuous latency calculator ---------- */
+      (function calcLab() {
+        const perEl = $("#calcPer");
+        if (!perEl) return;
+        const cntEl = $("#calcCnt"), thrEl = $("#calcThr"), cv = $("#calcScope");
+        let rate = 48000;
+        function vals() {
+          const per = +perEl.value, cnt = +cntEl.value;
+          const thrP = Math.min(+thrEl.value, cnt);
+          const bufF = per * cnt, thrF = per * thrP;
+          return { per, cnt, thrP, bufF, thrF,
+            bufMs: bufF / rate * 1000, coldMs: thrF / rate * 1000, contMs: bufF / rate * 1000 };
+        }
+        function draw(v) {
+          const { ctx, w, h } = fitCanvas(cv);
+          ctx.clearRect(0, 0, w, h);
+          const x0 = 10, x1 = w - 10;
+          ctx.font = "600 11.5px 'IBM Plex Sans',sans-serif"; ctx.textAlign = "left";
+          ctx.fillStyle = css("--muted");
+          ctx.fillText("THE RING BUFFER — ONE CELL PER PERIOD", x0, 15);
+          // buffer strip: amber = filled at start (threshold), pale teal = fills in steady state
+          const by = 24, bh = 30, gap = 3;
+          const cw = (x1 - x0 - gap * (v.cnt - 1)) / v.cnt;
+          for (let i = 0; i < v.cnt; i++) {
+            const x = x0 + i * (cw + gap);
+            if (i < v.thrP) { ctx.fillStyle = css("--amber"); ctx.globalAlpha = 1; }
+            else { ctx.fillStyle = css("--teal"); ctx.globalAlpha = 0.35; }
+            ctx.fillRect(x, by, cw, bh);
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+            ctx.strokeRect(x + 0.5, by + 0.5, cw - 1, bh - 1);
+          }
+          ctx.fillStyle = css("--muted"); ctx.font = "12px 'IBM Plex Sans',sans-serif";
+          ctx.fillText("buffer size: " + v.bufF.toLocaleString() + " frames", x0, by + bh + 18);
+          ctx.textAlign = "right";
+          ctx.fillText("threshold: " + v.thrF.toLocaleString() + " frames", x1, by + bh + 18);
+          ctx.textAlign = "left";
+          // latency bars on one shared scale
+          const lx = 92, barMax = w - lx - 76, maxMs = Math.max(v.coldMs, v.contMs);
+          const rows = [
+            ["Cold-start", v.coldMs, css("--amber"), 96],
+            ["Continuous", v.contMs, css("--teal"), 134]
+          ];
+          rows.forEach(([label, ms, color, y]) => {
+            ctx.fillStyle = css("--ink"); ctx.font = "600 12.5px 'IBM Plex Sans',sans-serif";
+            ctx.fillText(label, x0, y + 15);
+            ctx.fillStyle = color;
+            ctx.fillRect(lx, y, Math.max(2, barMax * ms / maxMs), 20);
+            ctx.fillStyle = css("--ink"); ctx.font = "600 12.5px 'IBM Plex Mono',monospace";
+            ctx.fillText("≈ " + ms.toFixed(1) + " ms", lx + Math.max(2, barMax * ms / maxMs) + 8, y + 15);
+          });
+          ctx.fillStyle = css("--muted"); ctx.font = "12px 'IBM Plex Sans',sans-serif";
+          ctx.fillText("Both bars share one scale — the longer the bar, the longer the wait.", x0, 182);
+        }
+        function render() {
+          const v = vals();
+          $("#calcPerVal").textContent = v.per.toLocaleString() + " frames";
+          $("#calcCntVal").textContent = v.cnt + " periods";
+          $("#calcThrVal").textContent = v.thrP + (v.thrP === 1 ? " period" : " periods") + " · " + v.thrF.toLocaleString() + " frames";
+          const verdict = v.thrF < v.bufF
+            ? "Continuous &gt; cold — because start threshold (<b>" + v.thrF.toLocaleString() + " frames</b>) &lt; buffer size (<b>" + v.bufF.toLocaleString() + " frames</b>): playback starts before the ring is full, but once streaming, every sample waits behind the <b>nearly full</b> buffer."
+            : "Continuous = cold — the start threshold <b>equals</b> the full buffer, so playback can't begin until the ring is completely full: the first sample waits behind the whole buffer, just like every sample after it.";
+          $("#calcReadout").innerHTML =
+            "Buffer size: <b>" + v.bufF.toLocaleString() + " frames</b> · <b>" + v.bufMs.toFixed(1) + " ms</b> (" + v.cnt + " periods × " + v.per.toLocaleString() + " frames)<br/>" +
+            "Cold-start latency: <b>≈ " + v.coldMs.toFixed(1) + " ms</b> (" + v.thrF.toLocaleString() + " ÷ " + rate.toLocaleString() + ")<br/>" +
+            "Continuous latency: <b>≈ " + v.contMs.toFixed(1) + " ms</b> (" + v.bufF.toLocaleString() + " ÷ " + rate.toLocaleString() + ")<br/>" +
+            "Continuous ÷ cold: <b>" + (v.contMs / v.coldMs).toFixed(1) + "×</b><br/>" +
+            verdict;
+          draw(v);
+        }
+        $$("#calcRates .btn").forEach(b => b.addEventListener("click", () => {
+          $$("#calcRates .btn").forEach(x => x.classList.remove("on")); b.classList.add("on");
+          rate = +b.dataset.rate;
+          render();
+        }));
+        perEl.addEventListener("input", render);
+        thrEl.addEventListener("input", render);
+        cntEl.addEventListener("input", () => {
+          thrEl.max = +cntEl.value;
+          if (+thrEl.value > +cntEl.value) thrEl.value = cntEl.value;
+          render();
+        });
+        render();
+        window.addEventListener("resize", render);
       })();
 
       /* ---------- 11c · hear the sample rates ---------- */
