@@ -90,6 +90,29 @@
       .hero p.lede{ font-size:19px; color:var(--muted); max-width:62ch; margin:0 0 22px; }
       #heroCanvas{ width:100%; height:120px; display:block; }
 
+      /* part 2 banner */
+      .next-banner{
+        display:block; text-decoration:none; margin-top:28px;
+        background:var(--panel); border:1.5px solid var(--accent); border-radius:var(--radius);
+        box-shadow:var(--shadow); padding:22px 24px; color:var(--ink);
+        transition:transform .15s ease;
+      }
+      .next-banner:hover{ transform:translateY(-2px); }
+      @media (prefers-reduced-motion: reduce){ .next-banner{ transition:none; } .next-banner:hover{ transform:none; } }
+      .next-banner .nb-tag{
+        display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600;
+        letter-spacing:.05em; background:var(--accent); color:var(--accent-ink);
+        padding:3px 10px; border-radius:999px; margin-bottom:10px;
+      }
+      .next-banner h2{ font-size:clamp(21px,3vw,27px); margin:0 0 6px; letter-spacing:-.01em; }
+      .next-banner h2 .arr{ color:var(--accent); }
+      .next-banner p{ color:var(--muted); margin:0 0 14px; max-width:64ch; }
+      .nb-topics{ display:flex; flex-wrap:wrap; gap:6px; }
+      .nb-topics span{
+        font-size:13px; font-weight:600; color:var(--ink);
+        background:var(--chip); border:1px solid var(--line); border-radius:999px; padding:4px 11px;
+      }
+
       section{ margin-top:56px; scroll-margin-top:64px; }
       .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:6px; }
       .sec-num{
@@ -164,6 +187,16 @@
       .latrow.fast .bar{ background:var(--teal); }
       .latrow.slow .bar{ background:var(--accent); }
       .latrow .lv{ font-family:"IBM Plex Mono",monospace; font-weight:600; text-align:right; }
+
+      /* worked-example table */
+      .worktable{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14.5px; }
+      .worktable th, .worktable td{ border:1px solid var(--line); padding:8px 12px; text-align:left; vertical-align:top; }
+      .worktable thead th{ background:var(--panel-2); font-weight:700; }
+      .worktable tbody th{ font-weight:600; }
+      .worktable tbody th small{ display:block; font-weight:400; color:var(--muted); font-size:12.5px; margin-top:2px; }
+      .worktable td{ font-family:"IBM Plex Mono",monospace; font-weight:600; white-space:nowrap; }
+      .worktable td small{ display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400; color:var(--muted); font-size:12.5px; margin-top:2px; }
+      @media (max-width:560px){ .worktable{ font-size:13px; } .worktable th, .worktable td{ padding:7px 8px; } }
 
       /* pipeline */
       .pipe{ display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin-top:14px; }
@@ -278,6 +311,20 @@
         <p class="lede">Sound starts as moving air. Your phone grabs that motion, turns it into numbers, cleans the numbers up, polishes them, sets the volume, and turns them back into moving air — thousands of times every second. Every step on this page is something you can <strong>see and hear</strong>. Press play and poke things.</p>
         <canvas id="heroCanvas" aria-hidden="true"></canvas>
       </header>
+
+      <a class="next-banner" href="dsp-basics.html">
+        <span class="nb-tag">Part 2 of the series</span>
+        <h2>DSP Basics — Visual Guide <span class="arr">&rarr;</span></h2>
+        <p>Finished the basics? Keep going one level deeper — into the digital signal processing that runs inside every phone, earbud, and car. See how filters really work, why a little feedback changes everything, and how engineers squeeze serious math into a real-time budget.</p>
+        <span class="nb-topics">
+          <span>Filters</span>
+          <span>FIR vs IIR</span>
+          <span>Convolution</span>
+          <span>Frequency-domain processing</span>
+          <span>Fixed-point arithmetic</span>
+          <span>Real-time budgets</span>
+        </span>
+      </a>
 
       <!-- ============ 1 · SOUND BASICS ============ -->
       <section id="sound">
@@ -1130,6 +1177,49 @@
             <text x="664" y="105" text-anchor="middle" font-size="12" fill="var(--muted)">period · period · period · period · …</text>
           </svg>
           <p style="margin-top:10px;">Cold latency is a sprint you run once at the start; continuous latency is the pace you hold for the whole race. And when that steady pace won't hold — when arrivals wobble around it — you get the troublemaker from Section 10: <strong>jitter</strong>.</p>
+
+          <h4 style="margin:22px 0 6px; font-size:17px;">🧮 Worked example: why continuous can run 4× higher than cold</h4>
+          <p>Zoom in on just the <strong>buffer's share</strong> of each number, and the two turn out to be set by different dials. <strong>Cold latency is set by the start threshold</strong>: playback begins the moment the buffer fills to that level, so the first sound only waits for <em>threshold ÷ sample rate</em>. <strong>Continuous latency is set by steady-state buffer occupancy</strong>: once streaming, the app writes as fast as it can, so the ring sits <strong>nearly full</strong> — and every sample waits in line behind almost the entire buffer: <em>buffer size ÷ sample rate</em>. Same stream, same rate — two different fill levels. Here it is at <strong>48 kHz with 4 periods per buffer</strong> and a start threshold of <strong>1 period</strong>:</p>
+          <table class="worktable">
+            <thead>
+              <tr>
+                <th scope="col">48 kHz · 4 periods per buffer</th>
+                <th scope="col">Period size 256</th>
+                <th scope="col">Period size 1,024</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Buffer size <small>period count × period size</small></th>
+                <td>1,024 frames</td>
+                <td>4,096 frames</td>
+              </tr>
+              <tr>
+                <th scope="row">Start threshold <small>set to 1 period</small></th>
+                <td>256 frames</td>
+                <td>1,024 frames</td>
+              </tr>
+              <tr>
+                <th scope="row">Cold-start latency <small>threshold ÷ sample rate</small></th>
+                <td><span style="color:var(--amber);">≈ 5.3 ms</span><small>256 ÷ 48,000</small></td>
+                <td><span style="color:var(--amber);">≈ 21.3 ms</span><small>1,024 ÷ 48,000</small></td>
+              </tr>
+              <tr>
+                <th scope="row">Continuous latency <small>full buffer ÷ sample rate</small></th>
+                <td><span style="color:var(--teal);">≈ 21.3 ms</span><small>1,024 ÷ 48,000</small></td>
+                <td><span style="color:var(--teal);">≈ 85.3 ms</span><small>4,096 ÷ 48,000</small></td>
+              </tr>
+              <tr>
+                <th scope="row">Continuous ÷ cold</th>
+                <td>4×</td>
+                <td>4×</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="callout" style="margin-top:14px;">
+            <p><strong>The rule:</strong> continuous latency is higher than cold latency <strong>exactly when start_threshold &lt; buffer_size</strong>. Set the start threshold equal to the full buffer and the two are <strong>equal</strong> — playback can't begin until the ring is completely full, so the first sample waits behind the whole buffer, just like every sample after it.</p>
+          </div>
+          <p style="margin-top:12px;">Spot the pattern: with a <strong>1-period start threshold</strong>, continuous latency is always ≈ <strong>4× the cold latency</strong> — and that 4 is just the period count. This is the core low-latency tuning tradeoff in one table: a <strong>small threshold</strong> buys a snappy startup, a <strong>big buffer</strong> buys glitch-free running — and steady-state delay is the price you pay for both.</p>
         </div>
 
         <h3>Why 16 kHz for voice calls, 24 kHz for voice recognition — and 48 kHz for music?</h3>
