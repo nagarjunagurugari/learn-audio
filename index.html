@@ -915,6 +915,51 @@
           <div class="readout" id="latMeasureOut" style="margin-top:12px;">Not measured yet — press the button.</div>
         </div>
 
+        <div class="card">
+          <h3>🎢 Jitter: the delay that won't sit still</h3>
+          <p>Latency tells you <em>how late</em> things are. <strong>Jitter</strong> tells you how <em>unevenly</em> late they are — the variation in arrival timing from one chunk to the next. Sound leaves the sender perfectly evenly spaced, but networks, Bluetooth radios, and busy CPUs don't deliver on a metronome, so chunks arrive bunched up and spread out. Here's the trap: your <strong>average latency can be perfectly fine and the audio still glitches</strong>, because playback consumes sound at a dead-steady rate. If one chunk arrives even slightly <em>after</em> its scheduled play moment, the speaker has nothing to play — a tiny underrun, heard as a click or stutter. It isn't how late the stream is; it's whether each piece shows up before its cue.</p>
+          <svg class="echosvg" viewBox="0 0 920 185" role="img" aria-label="Two timelines. Sent packets are perfectly evenly spaced. Arriving packets with jitter bunch up and spread out around the same average delay, and one arrives after its play slot, causing a glitch.">
+            <g stroke="var(--line)" stroke-width="1.5" stroke-dasharray="4 4">
+              <path d="M150,18 L150,128 M245,18 L245,128 M340,18 L340,128 M435,18 L435,128 M530,18 L530,128 M625,18 L625,128 M720,18 L720,128 M815,18 L815,128"/>
+            </g>
+            <g fill="var(--muted)" font-size="13">
+              <text x="16" y="46">sent</text>
+              <text x="16" y="112">arrived</text>
+            </g>
+            <g fill="var(--teal)">
+              <circle cx="150" cy="42" r="5"/><circle cx="245" cy="42" r="5"/><circle cx="340" cy="42" r="5"/><circle cx="435" cy="42" r="5"/><circle cx="530" cy="42" r="5"/><circle cx="625" cy="42" r="5"/><circle cx="720" cy="42" r="5"/><circle cx="815" cy="42" r="5"/>
+            </g>
+            <g fill="var(--teal)">
+              <circle cx="140" cy="108" r="5"/><circle cx="262" cy="108" r="5"/><circle cx="322" cy="108" r="5"/><circle cx="448" cy="108" r="5"/><circle cx="610" cy="108" r="5"/><circle cx="733" cy="108" r="5"/><circle cx="800" cy="108" r="5"/>
+            </g>
+            <circle cx="566" cy="108" r="6" fill="var(--bad)"/>
+            <g fill="var(--bad)" font-size="13" font-weight="700">
+              <text x="566" y="90" text-anchor="middle">✗ late!</text>
+            </g>
+            <g fill="var(--muted)" font-size="12.5" text-anchor="middle">
+              <text x="480" y="152">Dashed lines are the play slots — the moments each chunk is due at the speaker.</text>
+              <text x="480" y="170">Same average delay, but one arrival lands after its slot: that chunk is a glitch.</text>
+            </g>
+          </svg>
+          <p>The standard cure is a <strong>jitter buffer</strong>: deliberately hold every chunk back by a fixed extra amount and release them on a strict schedule. Early arrivals just wait a little longer; late arrivals get the extra time they needed. You trade a bit more latency for smoothness — the same bargain as the ALSA ring buffer in Section 11, wearing a network hat. Try it: crank the jitter up, watch the glitches pile up, then switch the jitter buffer on.</p>
+          <div class="lab">
+            <div><canvas class="scope short" id="jitScope"></canvas></div>
+            <div class="controls">
+              <div class="btnrow"><button class="btn primary" id="jitPlay">▶ Start the packet stream</button></div>
+              <div class="ctl">
+                <label>Jitter <span class="val" id="jitAmtVal">up to +45 ms extra</span></label>
+                <input type="range" id="jitAmt" min="0" max="110" step="5" value="45" />
+              </div>
+              <div class="seg" id="jitBufSeg">
+                <button class="btn on" data-buf="0">Jitter buffer: off</button>
+                <button class="btn" data-buf="100">Jitter buffer: on (+100 ms)</button>
+              </div>
+              <div class="readout" id="jitReadout"></div>
+            </div>
+          </div>
+          <p style="margin-top:12px;">Every video call and streaming app you own runs exactly this trade: a jitter buffer deep enough to absorb your network's wobble, shallow enough that nobody notices the extra delay. Too shallow and you hear robotic glitches; too deep and the conversation starts to feel like a satellite interview.</p>
+        </div>
+
         <div class="callout">
           <p><strong>Latency vs. everything else you learned:</strong> it's the one property you can't fix with a filter. EQ can reshape a sound and a compressor can tame it, but a delay already spent is gone — which is why audio engineers obsess over buffer sizes, and why the pipeline in Section 9 is kept as short as the hardware allows.</p>
         </div>
@@ -923,11 +968,11 @@
       <!-- ============ 11 · ALSA & SAMPLE RATES ============ -->
       <section id="alsa">
         <div class="sec-head"><span class="sec-num">11</span><h2>ALSA: the words under the hood</h2></div>
-        <p class="sec-intro">Every Linux and Android device — phones, laptops, car head units — plays sound through <strong>ALSA</strong>, the <em>Advanced Linux Sound Architecture</em>. When an app "plays audio," it really hands ALSA chunks of numbers and lets ALSA feed the hardware. Engineers who work on that layer use a small vocabulary of precise words. Learn these six and you can read almost any audio bug report.</p>
+        <p class="sec-intro">Every Linux and Android device — phones, laptops, car head units — plays sound through <strong>ALSA</strong>, the <em>Advanced Linux Sound Architecture</em>. When an app "plays audio," it really hands ALSA chunks of numbers and lets ALSA feed the hardware. Engineers who work on that layer use a small vocabulary of precise words. Learn these seven and you can read almost any audio bug report.</p>
         <p class="sec-intro">It helps to think of them as zoom levels — each one is built out of the one before:</p>
 
         <div class="card" style="padding:14px 18px;">
-          <svg class="echosvg" viewBox="0 0 920 190" role="img" aria-label="Zoom levels of digital audio: one sample is a single number; one frame is one sample per channel at the same instant; one period is 512 frames in a row; a ring buffer is 8 periods looping, 4,096 frames in total.">
+          <svg class="echosvg" viewBox="0 0 920 190" role="img" aria-label="Zoom levels of digital audio: one sample is a single number; one frame is one sample per channel at the same instant; one period is 512 frames in a row; a ring buffer has a period count of 8 — eight periods looping, 4,096 frames in total.">
             <g fill="var(--panel-2)" stroke="var(--line)">
               <rect x="10" y="52" width="195" height="96" rx="10"/>
               <rect x="248" y="52" width="205" height="96" rx="10"/>
@@ -947,7 +992,7 @@
               <text x="350" y="128">every channel, same instant</text>
               <text x="598" y="108">512 frames back-to-back</text>
               <text x="598" y="128">one chunk ≈ 10.7 ms of sound</text>
-              <text x="827" y="108">8 periods, looping</text>
+              <text x="827" y="108">period count: 8</text>
               <text x="827" y="128">4,096 frames ≈ 85 ms</text>
             </g>
             <g stroke="var(--muted)" stroke-width="2" fill="none">
@@ -958,7 +1003,7 @@
             <g fill="var(--teal)" font-size="12.5" font-weight="600" text-anchor="middle">
               <text x="224" y="42">× channels</text>
               <text x="472" y="42">× 512</text>
-              <text x="720" y="42">× 8</text>
+              <text x="720" y="42">× 8 = period count</text>
             </g>
             <text x="460" y="176" text-anchor="middle" font-size="13" fill="var(--muted)">At 48 kHz stereo, sound flows at <tspan font-weight="700" fill="var(--ink)">48,000 frames per second</tspan> — that's 96,000 samples per second.</text>
           </svg>
@@ -982,8 +1027,12 @@
             <p>Apps don't feed ALSA one frame at a time — they hand over a <strong>period</strong> (say 512 frames) at once. Every time the hardware finishes playing a period, it taps the app on the shoulder: <em>"one period done — refill, please."</em> Small periods = frequent wake-ups = low delay but more CPU work.</p>
           </article>
           <article class="termcard">
+            <h4>Period count <span class="mono">how many chunks</span></h4>
+            <p>The <strong>number of periods</strong> the ring buffer is divided into. Its partner is <strong>period size</strong> — how many frames each period holds — and the two multiply into the buffer: <strong>period count × period size = buffer size</strong>. A period count of <strong>8</strong> with 512-frame periods gives 8 × 512 = <strong>4,096 frames</strong> (≈ 85 ms at 48 kHz). More periods = a bigger cushion against stalls, but a longer wait hiding inside the stream.</p>
+          </article>
+          <article class="termcard">
             <h4>Buffer <span class="mono">the ring</span></h4>
-            <p>Several periods arranged in a <strong>circle</strong>. The app writes at one point of the ring, the hardware reads at another, and both chase each other around the loop. Buffer size = periods × period size — it's the <strong>cushion of ready-to-play sound</strong>, and a big chunk of the latency from Section 10 lives right here.</p>
+            <p>Several periods arranged in a <strong>circle</strong>. The app writes at one point of the ring, the hardware reads at another, and both chase each other around the loop. Buffer size = period count × period size — it's the <strong>cushion of ready-to-play sound</strong>, and a big chunk of the latency from Section 10 lives right here.</p>
           </article>
           <article class="termcard">
             <h4>Threshold <span class="mono">the starting line</span></h4>
@@ -993,13 +1042,21 @@
 
         <div class="card">
           <h3>🔄 The Ring Buffer Lab: don't let the music starve</h3>
-          <p>The app writes in <strong>bursts</strong> — one whole period whenever the system gets around to it. The sound card drains the ring at a <strong>perfectly steady</strong> rate. If the reader ever laps the writer, the buffer hits empty mid-playback: that's an <strong>underrun</strong> (ALSA calls it an <strong>XRUN</strong>), and you hear it as a click, a gap, or a robot glitch. Press start, watch the ring fill past the <strong>threshold</strong> tick before the sound card will even begin — then stall the app and see whether your cushion survives.</p>
+          <p>The app writes in <strong>bursts</strong> — one whole period whenever the system gets around to it. The sound card drains the ring at a <strong>perfectly steady</strong> rate. If the reader ever laps the writer, the buffer hits empty mid-playback: that's an <strong>underrun</strong> (ALSA calls it an <strong>XRUN</strong>), and you hear it as a click, a gap, or a robot glitch. Press start, watch the ring fill past the <strong>threshold</strong> tick before the sound card will even begin — then stall the app and see whether your cushion survives. The <strong>period count</strong> slider rebuilds the ring with more or fewer periods: watch the buffer size (period count × 512 frames) — and your safety margin — change. Then flip to <strong>Capture mode</strong>: now the microphone writes steadily and the app reads in bursts, and the failure flips with it — a dawdling app lets the ring fill to the brim until the newest sound <strong>overwrites the oldest unread data</strong>. That's an <strong>overrun</strong>, and those samples are lost forever.</p>
           <div class="lab">
             <div><canvas class="scope tall" id="ringScope"></canvas></div>
             <div class="controls">
+              <div class="seg" id="ringMode" style="margin-bottom:12px;">
+                <button class="btn on" data-mode="play">🔊 Playback · underrun</button>
+                <button class="btn" data-mode="cap">🎙️ Capture · overrun</button>
+              </div>
               <div class="btnrow">
                 <button class="btn primary" id="ringPlay">▶ Start the stream</button>
                 <button class="btn" id="ringStall">🚧 Stall the app (4 s)</button>
+              </div>
+              <div class="ctl">
+                <label>Period count <span class="val" id="ringPeriodsVal">8 periods · buffer 4,096 frames</span></label>
+                <input type="range" id="ringPeriods" min="2" max="16" step="2" value="8" />
               </div>
               <div class="ctl">
                 <label>Start threshold <span class="val" id="ringThrVal">1,024 frames</span></label>
@@ -1009,6 +1066,70 @@
             </div>
           </div>
           <p style="margin-top:12px;">Real systems live inside this trade-off: a car head unit might run 512-frame periods with a few periods of buffer for responsive beeps, while a music player uses a fat buffer so a bumpy road (or a busy CPU) never starves it. <strong>Latency vs. safety — the same bargain as Section 10, now with ALSA's names on it.</strong></p>
+        </div>
+
+        <div class="termgrid">
+          <article class="termcard">
+            <h4>Underrun <span class="mono">playback starves</span></h4>
+            <p>The ring runs <strong>empty</strong> while sound is playing. The app — the writer — was too slow (a busy CPU, a stall, a hiccup), so the hardware reaches for the next frame and finds <strong>nothing there</strong>. You hear it directly: a gap, a click, a stutter — the music literally runs out of sound. The cure points at the writer: feed faster, or start with a bigger cushion (more periods, a higher start threshold).</p>
+          </article>
+          <article class="termcard">
+            <h4>Overrun <span class="mono">capture overflows</span></h4>
+            <p>The ring runs <strong>full</strong> while recording. The microphone — the writer this time — never pauses, because the real world doesn't wait; but the app, the reader, was too slow, so the newest frames <strong>overwrite the oldest unread ones</strong>. Nothing clicks or complains — the samples simply <em>vanish</em>, leaving a silent hole in the middle of the recording. The cure points at the reader: empty the ring more often, or give it more periods.</p>
+          </article>
+          <article class="termcard">
+            <h4>XRUN <span class="mono">one alarm, two causes</span></h4>
+            <p>ALSA reports both failures identically: the stream stops with an <strong>XRUN</strong> error, and the app must re-prepare and restart it. Same alarm, opposite diseases — an underrun means <em>"feed me faster,"</em> an overrun means <em>"empty me faster."</em> In the lab above, flip between Playback and Capture and stall the app to cause each one on purpose.</p>
+          </article>
+        </div>
+
+        <div class="card">
+          <h3>🧊 Two kinds of latency: the cold start vs. the steady stream</h3>
+          <p>Not all latency is the same shape. <strong>Cold-start latency</strong> is the one-time cost of <em>starting</em> a stream: the device wakes and opens, the format and sample rate are negotiated, and the ring buffer must <strong>prime up to the start threshold</strong> before the first frame can play. Depending on the device it runs from tens to a few hundred milliseconds — paid <strong>once</strong>, every time a stream starts. (That's why a car warning chime, which must feel instant, keeps its stream open or uses a tiny threshold.) <strong>Continuous latency</strong> is what remains once you're streaming: every frame waits its turn inside the buffers — roughly <strong>one buffer depth</strong> in the ALSA ring alone — paid by <em>every single frame, forever</em>. It's the smaller number, but it's the one musicians and gamers actually feel.</p>
+          <svg class="echosvg" viewBox="0 0 920 225" role="img" aria-label="Timeline with two phases. Cold-start latency, paid once: the device opens, the stream is configured, and the buffer primes up to the start threshold before the first audible sound. Continuous latency, paid on every frame: a steady stream where each frame waits about one buffer depth, set by period count times period size.">
+            <g fill="var(--amber)" font-size="13" font-weight="700" text-anchor="middle">
+              <text x="235" y="18">COLD-START LATENCY — paid once</text>
+            </g>
+            <g stroke="var(--amber)" stroke-width="2">
+              <path d="M40,30 L430,30 M40,30 L40,38 M430,30 L430,38" fill="none"/>
+            </g>
+            <g fill="var(--panel-2)" stroke="var(--line)">
+              <rect x="40" y="48" width="115" height="30" rx="6"/>
+              <rect x="162" y="48" width="132" height="30" rx="6"/>
+              <rect x="301" y="48" width="129" height="30" rx="6"/>
+            </g>
+            <g fill="var(--ink)" font-size="12.5" text-anchor="middle">
+              <text x="97" y="67">device opens</text>
+              <text x="228" y="67">configure stream</text>
+              <text x="365" y="67">prime to threshold</text>
+            </g>
+            <g fill="var(--teal)" font-size="13" font-weight="700" text-anchor="middle">
+              <text x="662" y="18">CONTINUOUS LATENCY — paid on every frame</text>
+            </g>
+            <g stroke="var(--teal)" stroke-width="2">
+              <path d="M448,30 L880,30 M448,30 L448,38 M880,30 L880,38" fill="none"/>
+            </g>
+            <rect x="40" y="118" width="390" height="14" fill="var(--amber)" opacity="0.35"/>
+            <rect x="448" y="118" width="432" height="14" fill="var(--teal)" opacity="0.3"/>
+            <g stroke="var(--muted)" stroke-width="1.5">
+              <path d="M502,118 L502,132 M556,118 L556,132 M610,118 L610,132 M664,118 L664,132 M718,118 L718,132 M772,118 L772,132 M826,118 L826,132" />
+            </g>
+            <g stroke="var(--muted)" stroke-width="2" fill="none">
+              <path d="M30,125 L896,125" marker-end="url(#arr)"/>
+            </g>
+            <circle cx="430" cy="125" r="5" fill="var(--teal)"/>
+            <g fill="var(--ink)" font-size="12.5" text-anchor="middle">
+              <text x="430" y="152" font-weight="700">first audible sound</text>
+            </g>
+            <g fill="var(--muted)" font-size="12.5" text-anchor="middle">
+              <text x="235" y="182">opening the device, negotiating format &amp; rate,</text>
+              <text x="235" y="200">filling the ring to the start threshold</text>
+              <text x="662" y="182">steady state: each frame waits ≈ one buffer depth —</text>
+              <text x="662" y="200">period count × period size (4,096 frames ≈ 85 ms at 48 kHz)</text>
+            </g>
+            <text x="664" y="105" text-anchor="middle" font-size="12" fill="var(--muted)">period · period · period · period · …</text>
+          </svg>
+          <p style="margin-top:10px;">Cold latency is a sprint you run once at the start; continuous latency is the pace you hold for the whole race. And when that steady pace won't hold — when arrivals wobble around it — you get the troublemaker from Section 10: <strong>jitter</strong>.</p>
         </div>
 
         <h3>Why 16 kHz for voice calls, 24 kHz for voice recognition — and 48 kHz for music?</h3>
@@ -1899,6 +2020,12 @@
             why: "A sample is one number from one channel. A frame bundles one sample per channel for the same instant — stereo frames are L+R pairs. The chunk of frames an app hands over at once is a period, and several periods make the ring buffer."
           },
           {
+            q: "An ALSA stream has a period size of 512 frames and a period count of 8. How big is the ring buffer?",
+            opts: ["520 frames", "512 frames", "4,096 frames", "64 frames"],
+            a: 2,
+            why: "Buffer size = period count × period size: 8 periods × 512 frames = 4,096 frames — about 85 ms of sound at 48 kHz. Period count is simply how many periods the ring buffer is divided into; more periods means a bigger cushion against stalls, but more latency hiding in the stream."
+          },
+          {
             q: "An app is writing audio, but playback hasn't started. The buffer is probably still below the…",
             opts: ["Sample rate", "Start threshold — playback waits until enough frames are queued", "Crossover point", "Nyquist limit"],
             a: 1,
@@ -2369,18 +2496,132 @@
           hz.map(h => '<span class="hz" style="left:' + x(h[0]).toFixed(1) + '%">' + h[1] + '</span>').join("");
       })();
 
+      /* ---------- 10d · jitter lab ---------- */
+      (function jitterLab() {
+        const cv = $("#jitScope");
+        if (!cv) return;
+        const BASE = 55;              // fastest possible trip, ms
+        const SLACK = 25;             // bare playout schedule: BASE + SLACK
+        const MAXD = 200;             // chart ceiling, ms
+        let running = false, raf = null, last = 0, emitIn = 0, readTimer = 0;
+        let buf = 0;                  // jitter buffer depth, ms (0 or 100)
+        let pk = [];                  // {d: arrival delay, late: bool}
+        let played = 0, glitches = 0;
+        const jitEl = $("#jitAmt");
+        const jit = () => +jitEl.value;
+        const deadline = () => BASE + SLACK + buf;
+        function readout() {
+          $("#jitAmtVal").textContent = "up to +" + jit() + " ms extra";
+          const recent = pk.slice(-20);
+          const lo = recent.length ? Math.min.apply(null, recent.map(p => p.d)) : BASE;
+          const hi = recent.length ? Math.max.apply(null, recent.map(p => p.d)) : BASE;
+          $("#jitReadout").innerHTML =
+            "Packets played: <b>" + played + "</b> · glitches: <b>" + glitches + "</b><br/>" +
+            "Arrival delays lately: <b>" + Math.round(lo) + "–" + Math.round(hi) + " ms</b> · play deadline: <b>" + deadline() + " ms</b><br/>" +
+            (buf > 0
+              ? "Jitter buffer <b>on</b>: every packet is held to the " + deadline() + " ms schedule, so wobbles smaller than the buffer disappear — at the cost of <b>+" + buf + " ms latency</b>."
+              : glitches > 0
+                ? "No jitter buffer: any packet arriving past the <b>" + deadline() + " ms</b> deadline misses its slot — a click, a stutter, a robot voice."
+                : "No jitter buffer, and so far every packet beat the <b>" + deadline() + " ms</b> deadline. Raise the jitter and watch that change.");
+        }
+        function draw() {
+          const { ctx, w, h } = fitCanvas(cv);
+          ctx.clearRect(0, 0, w, h);
+          const padL = 34, padR = 8, padT = 16, padB = 20;
+          const iw = w - padL - padR, ih = h - padT - padB;
+          const y = d => padT + ih - (Math.min(d, MAXD) / MAXD) * ih;
+          // gridlines
+          ctx.strokeStyle = css("--line"); ctx.lineWidth = 1; ctx.globalAlpha = .5;
+          [0, 100, 200].forEach(d => { ctx.beginPath(); ctx.moveTo(padL, y(d)); ctx.lineTo(w - padR, y(d)); ctx.stroke(); });
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = css("--muted"); ctx.font = "11px 'IBM Plex Sans',sans-serif"; ctx.textAlign = "right";
+          ctx.fillText("200", padL - 5, y(200) + 4); ctx.fillText("100", padL - 5, y(100) + 4); ctx.fillText("0 ms", padL - 5, y(0) + 4);
+          // deadline
+          ctx.strokeStyle = css("--accent"); ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+          ctx.beginPath(); ctx.moveTo(padL, y(deadline())); ctx.lineTo(w - padR, y(deadline())); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = css("--accent"); ctx.font = "600 11px 'IBM Plex Sans',sans-serif"; ctx.textAlign = "right";
+          ctx.fillText("play deadline " + deadline() + " ms" + (buf ? " (jitter buffer on)" : ""), w - padR - 4, y(deadline()) - 6);
+          // packets
+          const N = 44, stepX = iw / N;
+          const show = pk.slice(-N);
+          show.forEach((p, i) => {
+            const x = padL + i * stepX + stepX / 2;
+            ctx.beginPath(); ctx.arc(x, y(p.d), 4.5, 0, Math.PI * 2);
+            ctx.fillStyle = p.late ? css("--bad") : css("--teal"); ctx.fill();
+            if (p.late) {
+              ctx.fillStyle = css("--bad"); ctx.font = "700 12px 'IBM Plex Sans',sans-serif"; ctx.textAlign = "center";
+              ctx.fillText("✗", x, y(p.d) - 9);
+            }
+          });
+          ctx.fillStyle = css("--muted"); ctx.font = "11px 'IBM Plex Sans',sans-serif"; ctx.textAlign = "center";
+          ctx.fillText("each dot = one packet's arrival delay →", padL + iw / 2, h - 5);
+          if (!pk.length) {
+            ctx.fillStyle = css("--muted"); ctx.font = "14px 'IBM Plex Sans',sans-serif";
+            ctx.fillText("Press start — packets will stream in from the network.", padL + iw / 2, padT + ih / 2);
+          }
+        }
+        function step(dt) {
+          emitIn -= dt;
+          if (emitIn <= 0) {
+            emitIn = 130;
+            const d = BASE + Math.random() * jit();
+            const late = d > deadline();
+            pk.push({ d, late });
+            if (pk.length > 200) pk.shift();
+            played++;
+            if (late) glitches++;
+          }
+        }
+        function loop(ts) {
+          raf = requestAnimationFrame(loop);
+          const dt = Math.min(60, ts - (last || ts)); last = ts;
+          step(dt);
+          readTimer -= dt;
+          if (readTimer <= 0) { readout(); readTimer = 200; }
+          draw();
+        }
+        function pause() {
+          running = false;
+          if (raf) cancelAnimationFrame(raf); raf = null; last = 0;
+          $("#jitPlay").textContent = "▶ Start the packet stream";
+          readout(); draw();
+        }
+        registerStop(pause);
+        $("#jitPlay").addEventListener("click", () => {
+          if (running) { pause(); return; }
+          stopAll(pause);
+          running = true; last = 0;
+          $("#jitPlay").textContent = "⏸ Pause";
+          raf = requestAnimationFrame(loop);
+        });
+        jitEl.addEventListener("input", () => { readout(); draw(); });
+        $$("#jitBufSeg .btn").forEach(b => b.addEventListener("click", () => {
+          buf = +b.dataset.buf;
+          $$("#jitBufSeg .btn").forEach(x => x.classList.toggle("on", x === b));
+          readout(); draw();
+        }));
+        readout(); draw();
+        window.addEventListener("resize", draw);
+      })();
+
       /* ---------- 11b · ALSA ring buffer lab ---------- */
       (function ringLab() {
         const cv = $("#ringScope");
         if (!cv) return;
-        const PERIODS = 8, PERIOD_FRAMES = 512, CAP = PERIODS * PERIOD_FRAMES;
+        const PERIOD_FRAMES = 512;
+        let PERIODS = 8;
+        const cap = () => PERIODS * PERIOD_FRAMES;
+        let mode = "play"; // "play" = playback (underrun) · "cap" = capture (overrun)
         let running = false, raf = null, last = 0;
-        let fillP = 0, playing = false, underruns = 0, writeIn = 250, stalled = 0, flash = 0, readTimer = 0;
-        const thrEl = $("#ringThr");
-        const thrFrames = () => +thrEl.value;
+        let fillP = 0, active = false, underruns = 0, overruns = 0, lostFrames = 0;
+        let burstIn = 250, stalled = 0, flash = 0, flashKind = "", overArmed = true, readTimer = 0;
+        const thrEl = $("#ringThr"), perEl = $("#ringPeriods");
+        const thrFrames = () => Math.min(+thrEl.value, cap());
         function stateText() {
-          if (flash > 0) return ["UNDERRUN!", css("--bad")];
-          if (playing) return ["PLAYING", css("--teal")];
+          if (flash > 0 && flashKind === "under") return ["UNDERRUN!", css("--bad")];
+          if (flash > 0 && flashKind === "over") return ["OVERRUN!", css("--bad")];
+          if (mode === "cap" && active) return ["RECORDING", css("--teal")];
+          if (active) return ["PLAYING", css("--teal")];
           if (fillP * PERIOD_FRAMES >= thrFrames()) return ["STARTING…", css("--amber")];
           return ["FILLING…", css("--amber")];
         }
@@ -2388,14 +2629,24 @@
           const fillF = Math.round(fillP * PERIOD_FRAMES);
           const st = stateText()[0];
           $("#ringThrVal").textContent = thrFrames().toLocaleString() + " frames";
+          $("#ringPeriodsVal").textContent = PERIODS + " periods · buffer " + cap().toLocaleString() + " frames";
+          const sizes =
+            "Period size: <b>" + PERIOD_FRAMES + " frames</b> · period count: <b>" + PERIODS + "</b> → buffer: <b>" + cap().toLocaleString() + " frames</b> (≈ " + (cap() / 48).toFixed(0) + " ms)<br/>" +
+            "Start threshold: <b>" + thrFrames().toLocaleString() + " frames</b> (≈ " + (thrFrames() / 48).toFixed(0) + " ms)<br/>";
+          const counter = mode === "play"
+            ? "Underruns (XRUNs): <b>" + underruns + "</b><br/>"
+            : "Overruns (XRUNs): <b>" + overruns + "</b> · samples lost: <b>" + Math.round(lostFrames).toLocaleString() + " frames</b><br/>";
+          const hint = mode === "play"
+            ? (fillP >= PERIODS ? "Ring is <b>full</b> — the app must wait before writing more. That's normal back-pressure."
+              : underruns > 0 && !active && running ? "The ring ran dry and playback stopped. It restarts once the fill passes the <b>threshold</b> again — a higher threshold would have started with a bigger cushion."
+              : "The sound card drains steadily; the app refills one <b>period</b> at a time. Stall the app and watch the cushion shrink.")
+            : (fillP >= PERIODS ? "Ring is <b>full</b> — the mic keeps writing, so the <b>oldest unread sound is being overwritten</b> right now. Those samples are gone for good."
+              : overruns > 0 ? "Every frame overwritten while the ring sat full is a frame the recording will never contain — in a voice call, that's a <b>hole in the middle of a word</b>."
+              : "The mic fills steadily; the app empties one <b>period</b> at a time. Stall the app and watch the ring fill toward an <b>overrun</b>.");
           $("#ringReadout").innerHTML =
             "Status: <b>" + (running ? st : "PAUSED") + "</b>" + (stalled > 0 ? " — app stalled!" : "") + "<br/>" +
-            "In the ring: <b>" + fillF.toLocaleString() + " / " + CAP.toLocaleString() + " frames</b> (" + fillP.toFixed(1) + " of " + PERIODS + " periods ≈ " + (fillF / 48).toFixed(0) + " ms)<br/>" +
-            "Period: <b>" + PERIOD_FRAMES + " frames</b> · start threshold: <b>" + thrFrames().toLocaleString() + " frames</b> (≈ " + (thrFrames() / 48).toFixed(0) + " ms)<br/>" +
-            "Underruns (XRUNs): <b>" + underruns + "</b><br/>" +
-            (fillP >= PERIODS ? "Ring is <b>full</b> — the app must wait before writing more. That's normal back-pressure."
-              : underruns > 0 && !playing && running ? "The ring ran dry and playback stopped. It restarts once the fill passes the <b>threshold</b> again — a higher threshold would have started with a bigger cushion."
-              : "The sound card drains steadily; the app refills one <b>period</b> at a time.");
+            "In the ring: <b>" + fillF.toLocaleString() + " / " + cap().toLocaleString() + " frames</b> (" + fillP.toFixed(1) + " of " + PERIODS + " periods ≈ " + (fillF / 48).toFixed(0) + " ms)<br/>" +
+            sizes + counter + hint;
         }
         function draw() {
           const { ctx, w, h } = fitCanvas(cv);
@@ -2410,12 +2661,12 @@
             if (frac > 0) {
               ctx.beginPath();
               ctx.arc(cx, cy, R, a0 + i * seg + gap / 2, a0 + (i + frac) * seg - gap / 2);
-              ctx.strokeStyle = flash > 0 ? css("--bad") : playing ? css("--teal") : css("--amber");
+              ctx.strokeStyle = flash > 0 ? css("--bad") : active ? css("--teal") : css("--amber");
               ctx.lineWidth = lw; ctx.stroke();
             }
           }
           // threshold tick
-          const ta = a0 + (thrFrames() / CAP) * Math.PI * 2;
+          const ta = a0 + (thrFrames() / cap()) * Math.PI * 2;
           ctx.beginPath();
           ctx.moveTo(cx + Math.cos(ta) * (R - lw / 2 - 4), cy + Math.sin(ta) * (R - lw / 2 - 4));
           ctx.lineTo(cx + Math.cos(ta) * (R + lw / 2 + 9), cy + Math.sin(ta) * (R + lw / 2 + 9));
@@ -2433,19 +2684,40 @@
         }
         function step(dt) {
           if (flash > 0) flash -= dt;
-          if (stalled > 0) stalled -= dt;
-          else {
-            writeIn -= dt;
-            if (writeIn <= 0) {
-              writeIn = 380 + Math.random() * 440;
-              if (fillP < PERIODS) fillP = Math.min(PERIODS, fillP + 1);
+          if (mode === "play") {
+            if (stalled > 0) stalled -= dt;
+            else {
+              burstIn -= dt;
+              if (burstIn <= 0) {
+                burstIn = 380 + Math.random() * 440;
+                if (fillP < PERIODS) fillP = Math.min(PERIODS, fillP + 1);
+              }
             }
-          }
-          if (!playing && fillP * PERIOD_FRAMES >= thrFrames() && fillP > 0) playing = true;
-          if (playing) {
-            fillP -= dt / 750;
-            if (fillP <= 0) {
-              fillP = 0; playing = false; underruns++; flash = 700;
+            if (!active && fillP * PERIOD_FRAMES >= thrFrames() && fillP > 0) active = true;
+            if (active) {
+              fillP -= dt / 750;
+              if (fillP <= 0) {
+                fillP = 0; active = false; underruns++; flash = 700; flashKind = "under";
+              }
+            }
+          } else {
+            // capture: the microphone (hardware) writes steadily; the app reads in bursts
+            if (!active && fillP * PERIOD_FRAMES >= thrFrames() && fillP > 0) active = true;
+            fillP += dt / 750;
+            if (fillP >= PERIODS) {
+              lostFrames += (fillP - PERIODS) * PERIOD_FRAMES;
+              fillP = PERIODS;
+              flash = 500; flashKind = "over";
+              if (overArmed) { overruns++; overArmed = false; }
+            }
+            if (stalled > 0) stalled -= dt;
+            else {
+              burstIn -= dt;
+              if (burstIn <= 0) {
+                burstIn = 380 + Math.random() * 440;
+                if (fillP >= 1) fillP -= 1;
+                if (fillP < PERIODS - 0.01) overArmed = true;
+              }
             }
           }
         }
@@ -2472,9 +2744,24 @@
           raf = requestAnimationFrame(loop);
         });
         $("#ringStall").addEventListener("click", () => {
-          if (running && stalled <= 0) stalled = 4000;
+          if (running && stalled <= 0) stalled = mode === "cap" ? 7000 : 4000;
         });
         thrEl.addEventListener("input", () => { readout(); draw(); });
+        perEl.addEventListener("input", () => {
+          PERIODS = +perEl.value;
+          thrEl.max = cap();
+          if (+thrEl.value > cap()) thrEl.value = cap();
+          if (fillP > PERIODS) fillP = PERIODS;
+          readout(); draw();
+        });
+        $$("#ringMode .btn").forEach(b => b.addEventListener("click", () => {
+          if (b.dataset.mode === mode) return;
+          mode = b.dataset.mode;
+          fillP = 0; active = false; flash = 0; stalled = 0; burstIn = 250;
+          $("#ringStall").textContent = mode === "cap" ? "🚧 Stall the app (7 s)" : "🚧 Stall the app (4 s)";
+          $$("#ringMode .btn").forEach(x => x.classList.toggle("on", x === b));
+          readout(); draw();
+        }));
         readout(); draw();
         window.addEventListener("resize", draw);
       })();
