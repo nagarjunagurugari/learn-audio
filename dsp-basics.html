@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>DSP Basics — Visual Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #f2f5f3;
+        --bg-raise: #ffffff;
+        --bg-sink: #e6ebe8;
+        --ink: #15211c;
+        --ink-soft: #43554c;
+        --ink-faint: #71817a;
+        --line: #d3dcd7;
+        --accent: #0b7a67;
+        --accent-strong: #095e4f;
+        --accent-soft: #d7efe9;
+        --amber: #b96e07;
+        --amber-soft: #fbeed3;
+        --red: #c23325;
+        --red-soft: #fbe3df;
+        --scope: #0c1a15;
+        --scope-grid: #1e3a30;
+        --scope-line: #3ce8bd;
+        --scope-dim: #8fb8ab;
+        --radius: 14px;
+        --shadow: 0 1px 2px rgba(18, 34, 27, .06), 0 8px 24px rgba(18, 34, 27, .07);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b100e;
+          --bg-raise: #131a17;
+          --bg-sink: #0e1411;
+          --ink: #e8f0ec;
+          --ink-soft: #a9bcb2;
+          --ink-faint: #71857b;
+          --line: #26332c;
+          --accent: #2fd3ae;
+          --accent-strong: #5fe3c4;
+          --accent-soft: #123128;
+          --amber: #f0b64f;
+          --amber-soft: #33270e;
+          --red: #ff7a6b;
+          --red-soft: #3a1a15;
+          --scope: #08120e;
+          --scope-grid: #1c332a;
+          --scope-line: #3ce8bd;
+          --scope-dim: #7ba294;
+          --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+
+      /* ---------- Companion banner ---------- */
+      .companion {
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        margin: 22px 0 0;
+        padding: 16px 20px;
+        background: var(--accent-soft);
+        border: 1.5px solid var(--accent);
+        border-radius: var(--radius);
+        text-decoration: none; color: var(--ink);
+      }
+      .companion:hover { border-color: var(--accent-strong); }
+      .companion .part-tag {
+        font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600;
+        letter-spacing: .08em; text-transform: uppercase;
+        background: var(--accent); color: #fff;
+        padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+      }
+      @media (prefers-color-scheme: dark) { .companion .part-tag { color: #06231c; } }
+      .companion .c-text { flex: 1 1 260px; }
+      .companion .c-text strong { display: block; font-size: 17px; line-height: 1.3; }
+      .companion .c-text span { color: var(--ink-soft); font-size: 14.5px; }
+      .companion .c-arrow { font-size: 22px; color: var(--accent-strong); font-weight: 700; }
+
+      /* ---------- Hero ---------- */
+      header.hero { padding: 44px 0 8px; }
+      .series-line {
+        font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600;
+        letter-spacing: .1em; text-transform: uppercase; color: var(--accent-strong);
+        margin: 0 0 10px;
+      }
+      h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin: 0 0 14px; }
+      .lede { font-size: 19px; color: var(--ink-soft); max-width: 46em; margin: 0 0 8px; }
+      .lede strong { color: var(--ink); }
+      .hero-eq {
+        margin: 22px 0 6px; padding: 14px 18px;
+        background: var(--scope); color: var(--scope-line);
+        border-radius: var(--radius);
+        font-family: "IBM Plex Mono", monospace; font-size: clamp(13px, 2.6vw, 16.5px);
+        overflow-x: auto; white-space: nowrap;
+      }
+      .hero-eq .dim { color: var(--scope-dim); }
+
+      /* ---------- TOC ---------- */
+      nav.toc { margin: 26px 0 6px; }
+      nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      @media (max-width: 620px) { nav.toc ol { grid-template-columns: 1fr; } }
+      nav.toc a {
+        display: flex; gap: 12px; align-items: baseline;
+        background: var(--bg-raise); border: 1px solid var(--line); border-radius: 10px;
+        padding: 12px 14px; text-decoration: none; color: var(--ink); box-shadow: var(--shadow);
+      }
+      nav.toc a:hover { border-color: var(--accent); }
+      nav.toc .n { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--accent-strong); font-size: 14px; }
+      nav.toc .t { font-weight: 600; font-size: 15.5px; line-height: 1.35; }
+
+      /* ---------- Sections ---------- */
+      section { margin-top: 64px; scroll-margin-top: 24px; }
+      .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+      .sec-num {
+        font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 600;
+        color: var(--accent-strong); background: var(--accent-soft);
+        border-radius: 8px; padding: 3px 10px; white-space: nowrap;
+      }
+      h2 { font-size: clamp(25px, 4.4vw, 34px); line-height: 1.15; font-weight: 800; letter-spacing: -.015em; margin: 0; }
+      h3 { font-size: 19px; font-weight: 700; margin: 26px 0 8px; }
+      p { margin: 10px 0; max-width: 62em; }
+      .big-idea {
+        border-left: 4px solid var(--accent);
+        background: var(--bg-raise); border-radius: 0 var(--radius) var(--radius) 0;
+        padding: 14px 18px; margin: 18px 0; box-shadow: var(--shadow);
+        font-size: 17.5px;
+      }
+      .big-idea b { color: var(--accent-strong); }
+      .warn { border-left-color: var(--red); }
+      .warn b { color: var(--red); }
+      code, .eq {
+        font-family: "IBM Plex Mono", monospace; font-size: .92em;
+        background: var(--bg-sink); border-radius: 6px; padding: 1px 6px;
+      }
+      .eq-block {
+        font-family: "IBM Plex Mono", monospace; font-size: clamp(14px, 2.8vw, 17px);
+        background: var(--bg-sink); border-radius: 10px; padding: 14px 18px; margin: 14px 0;
+        overflow-x: auto; white-space: nowrap; text-align: center;
+      }
+
+      /* ---------- Labs ---------- */
+      .lab {
+        background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--radius);
+        box-shadow: var(--shadow); padding: 20px; margin: 22px 0;
+      }
+      .lab-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+      .lab-tag {
+        font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600;
+        letter-spacing: .09em; text-transform: uppercase;
+        background: var(--amber-soft); color: var(--amber);
+        padding: 3px 9px; border-radius: 999px;
+      }
+      .lab h3 { margin: 0; font-size: 18px; }
+      .lab p.lab-sub { color: var(--ink-soft); font-size: 15px; margin: 4px 0 14px; }
+      canvas.scope {
+        display: block; width: 100%; height: auto;
+        background: var(--scope); border-radius: 10px;
+      }
+      .controls { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; margin-top: 14px; }
+      .ctl { display: flex; align-items: center; gap: 10px; flex: 1 1 220px; min-width: 200px; }
+      .ctl label { font-size: 14px; font-weight: 600; white-space: nowrap; }
+      .ctl output { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 600; color: var(--accent-strong); min-width: 3.2em; }
+      input[type="range"] { flex: 1; accent-color: var(--accent); height: 28px; }
+      .btn {
+        font-family: inherit; font-size: 14.5px; font-weight: 600;
+        background: var(--accent); color: #fff; border: none; border-radius: 9px;
+        padding: 9px 16px; cursor: pointer;
+      }
+      @media (prefers-color-scheme: dark) { .btn { color: #06231c; } }
+      .btn:hover { background: var(--accent-strong); }
+      .btn.ghost { background: transparent; color: var(--accent-strong); border: 1.5px solid var(--accent); }
+      .btn.danger { background: var(--red); color: #fff; }
+      .btn:disabled { opacity: .45; cursor: default; }
+      .readout {
+        font-family: "IBM Plex Mono", monospace; font-size: 14px;
+        background: var(--bg-sink); border-radius: 9px; padding: 10px 14px; margin-top: 14px;
+        overflow-x: auto;
+      }
+      .readout b { color: var(--accent-strong); }
+      .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-soft); margin-top: 10px; }
+      .legend i { display: inline-block; width: 22px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+      /* ---------- Compare cards / diagrams ---------- */
+      .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+      @media (max-width: 680px) { .duo { grid-template-columns: 1fr; } }
+      .card {
+        background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--radius);
+        padding: 18px; box-shadow: var(--shadow);
+      }
+      .card h4 { margin: 0 0 6px; font-size: 17px; }
+      .card p { font-size: 15px; color: var(--ink-soft); margin: 6px 0; }
+      .card ul { margin: 8px 0 0; padding-left: 20px; font-size: 15px; }
+      .card li { margin: 4px 0; }
+      .diagram { background: var(--bg-sink); border-radius: 10px; padding: 12px; margin: 10px 0; }
+      .diagram svg { display: block; width: 100%; height: auto; }
+      .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+      @media (max-width: 760px) { .trio { grid-template-columns: 1fr; } }
+      .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+      @media (max-width: 680px) { .stat-row { grid-template-columns: 1fr; } }
+      .stat { background: var(--bg-sink); border-radius: 10px; padding: 14px 16px; text-align: center; }
+      .stat .v { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-weight: 600; color: var(--accent-strong); display: block; }
+      .stat .k { font-size: 13.5px; color: var(--ink-soft); }
+
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+      .chip {
+        font-family: inherit; font-size: 14px; font-weight: 600;
+        border: 1.5px solid var(--line); background: var(--bg-raise); color: var(--ink);
+        border-radius: 999px; padding: 7px 14px; cursor: pointer;
+      }
+      .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+      .chip .cost { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; opacity: .75; font-weight: 500; }
+      .budgetbar { height: 30px; background: var(--bg-sink); border-radius: 8px; overflow: hidden; position: relative; margin-top: 12px; }
+      .budgetbar .fill { height: 100%; background: var(--accent); width: 0%; transition: width .35s ease; }
+      .budgetbar.over .fill { background: var(--red); }
+      .budgetbar .deadline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .55; }
+
+      /* ---------- Quiz ---------- */
+      .quiz-q { background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin: 14px 0; box-shadow: var(--shadow); }
+      .quiz-q p.q { font-weight: 600; margin: 0 0 10px; }
+      .quiz-q .opts { display: grid; gap: 8px; }
+      .quiz-q button.opt {
+        font-family: inherit; font-size: 15.5px; text-align: left;
+        background: var(--bg); border: 1.5px solid var(--line); color: var(--ink);
+        border-radius: 9px; padding: 10px 14px; cursor: pointer;
+      }
+      .quiz-q button.opt:hover { border-color: var(--accent); }
+      .quiz-q button.opt.right { border-color: var(--accent); background: var(--accent-soft); }
+      .quiz-q button.opt.wrong { border-color: var(--red); background: var(--red-soft); }
+      .quiz-q .why { display: none; font-size: 14.5px; color: var(--ink-soft); margin: 10px 0 0; }
+      .quiz-q.answered .why { display: block; }
+      #quiz-score { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 16px; margin-top: 16px; }
+
+      footer { margin-top: 70px; border-top: 1px solid var(--line); padding-top: 22px; color: var(--ink-soft); font-size: 15px; }
+      footer a { color: var(--accent-strong); }
+      @media (max-width: 560px) {
+        .hero-eq, .eq-block { white-space: normal; overflow-x: visible; line-height: 1.7; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .budgetbar .fill { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+
+      <a class="companion" href="https://nagarjunagurugari.github.io/audio_basics/">
+        <span class="part-tag">Part 1</span>
+        <span class="c-text">
+          <strong>New here? Start with “Audio Basics to Algorithms — Visual Guide”</strong>
+          <span>Sound, speakers, sampling, ALSA buffers and latency — the foundations this page builds on.</span>
+        </span>
+        <span class="c-arrow" aria-hidden="true">→</span>
+      </a>
+
+      <header class="hero">
+        <p class="series-line">Audio series · Part 2</p>
+        <h1>DSP Basics, Visualized</h1>
+        <p class="lede">Digital Signal Processing sounds like graduate-level math. It isn't. Nearly everything a DSP chip does — every EQ, echo, and noise canceller in your car, earbuds, and phone — boils down to <strong>one humble operation, repeated millions of times per second</strong>:</p>
+        <div class="hero-eq">output <span class="dim">=</span> (sample × weight) <span class="dim">+</span> (sample × weight) <span class="dim">+</span> (sample × weight) <span class="dim">+ …</span></div>
+        <p class="lede" style="font-size:16.5px">This page builds that idea up step by step: filters, convolution, the frequency domain, fixed-point math, and the brutal real-time deadline every audio algorithm races against. Every section has a lab — drag the sliders and watch the math move.</p>
+      </header>
+
+      <nav class="toc" aria-label="Sections">
+        <ol>
+          <li><a href="#s1"><span class="n">01</span><span class="t">Filters are just weighted averages</span></a></li>
+          <li><a href="#s2"><span class="n">02</span><span class="t">FIR vs. IIR: memory vs. feedback</span></a></li>
+          <li><a href="#s3"><span class="n">03</span><span class="t">Convolution: the one operation to rule them all</span></a></li>
+          <li><a href="#s4"><span class="n">04</span><span class="t">Why the frequency domain exists</span></a></li>
+          <li><a href="#s5"><span class="n">05</span><span class="t">Fixed-point vs. floating-point</span></a></li>
+          <li><a href="#s6"><span class="n">06</span><span class="t">The real-time budget: racing the sample clock</span></a></li>
+        </ol>
+      </nav>
+
+      <!-- ================= SECTION 1 ================= -->
+      <section id="s1">
+        <div class="sec-head"><span class="sec-num">01</span><h2>Filters are just weighted averages</h2></div>
+        <p>Imagine a temperature sensor that jitters: 21.2°, 19.8°, 22.5°, 20.1°… The true temperature isn't leaping around — the <em>measurement</em> is noisy. The oldest trick in the book: average the last few readings. The jitter cancels, the trend survives. That trick, applied to audio samples, <strong>is</strong> a filter.</p>
+        <p>Audio is just a stream of numbers — samples. A <strong>moving-average filter</strong> replaces each sample with the average of itself and its recent neighbors. Noise wiggles up and down randomly, so averaging shrinks it. The smooth musical signal changes slowly, so it passes through almost untouched. Fast wiggles removed, slow shapes kept — that's exactly what a <em>low-pass filter</em> means.</p>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>The Smoothing Machine</h3></div>
+          <p class="lab-sub">A noisy signal (faint) flows through a moving-average filter. Drag the slider to widen the averaging window and watch the output (bright) calm down — then notice what too much averaging does to the sharp peaks.</p>
+          <canvas class="scope" id="maCanvas" width="900" height="300" aria-label="Animated graph: noisy input signal and its smoothed output"></canvas>
+          <div class="legend">
+            <span><i style="background:#5d7a6f"></i>Noisy input x[n]</span>
+            <span><i style="background:#3ce8bd"></i>Filtered output y[n]</span>
+          </div>
+          <div class="controls">
+            <div class="ctl">
+              <label for="maTaps">Window (taps)</label>
+              <input type="range" id="maTaps" min="1" max="41" step="2" value="9" />
+              <output id="maTapsOut">9</output>
+            </div>
+          </div>
+          <div class="readout" id="maReadout"></div>
+        </div>
+
+        <div class="big-idea"><b>The reveal:</b> nothing forces the weights to be equal. Give recent samples more say and old samples less, and you shape <em>which</em> frequencies get removed. A filter whose output is a weighted sum of recent <em>inputs</em> is called an <b>FIR filter</b> — Finite Impulse Response. “Finite” because it only ever looks back at a fixed window of the past.</div>
+        <div class="eq-block">y[n] = w₀·x[n] + w₁·x[n−1] + w₂·x[n−2] + … + w<sub>N−1</sub>·x[n−N+1]</div>
+        <p>Each weight <code>w</code> is called a <strong>tap</strong> or <strong>coefficient</strong>, and the whole list of weights is the filter's <strong>kernel</strong>. Designing a filter = choosing the weights. A moving average is just the special case where every weight equals <code>1/N</code>. Keep this equation in mind — by Section 3 you'll see it's secretly the engine of <em>all</em> DSP.</p>
+      </section>
+
+      <!-- ================= SECTION 2 ================= -->
+      <section id="s2">
+        <div class="sec-head"><span class="sec-num">02</span><h2>FIR vs. IIR: memory vs. feedback</h2></div>
+        <p>An FIR filter has amnesia by design: shout one loud click into it (an <em>impulse</em>) and the effect washes out after exactly N samples, when the click slides out of the window. But there's another way to build a filter — let the output <strong>feed back</strong> into itself:</p>
+        <div class="eq-block">y[n] = b₀·x[n] + a₁·y[n−1] + a₂·y[n−2] + …</div>
+        <p>That's an <strong>IIR filter</strong> — Infinite Impulse Response. One click echoes into the output, a fraction of it feeds back, echoes again, and so on <em>forever</em> (fading each round). Like a microphone held near its own speaker, feedback gives enormous power from tiny hardware — and the same danger.</p>
+
+        <div class="duo">
+          <div class="card">
+            <h4>FIR — feedforward only</h4>
+            <div class="diagram" aria-hidden="true">
+              <svg viewBox="0 0 300 120" role="img" aria-label="FIR block diagram: input passes through a chain of delays, each tapped with a weight, all summed to the output">
+                <defs><marker id="arw1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+                <g fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M8 30 H292" marker-end="url(#arw1)"/>
+                  <rect x="70" y="18" width="34" height="24" rx="4"/><rect x="140" y="18" width="34" height="24" rx="4"/><rect x="210" y="18" width="34" height="24" rx="4"/>
+                  <path d="M87 42 V78 M157 42 V78 M227 42 V78"/>
+                  <circle cx="262" cy="84" r="13"/>
+                  <path d="M30 84 H249 M275 84 H292" marker-end="url(#arw1)"/>
+                </g>
+                <g fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+                  <text x="20" y="22">x[n]</text>
+                  <text x="87" y="34">z⁻¹</text><text x="157" y="34">z⁻¹</text><text x="227" y="34">z⁻¹</text>
+                  <text x="87" y="66">×w₁</text><text x="157" y="66">×w₂</text><text x="227" y="66">×w₃</text>
+                  <text x="262" y="89">+</text><text x="284" y="74">y[n]</text>
+                  <text x="150" y="112" fill-opacity=".65">delays hold past inputs</text>
+                </g>
+              </svg>
+            </div>
+            <ul>
+              <li><b>Always stable</b> — no feedback, so it can never run away.</li>
+              <li><b>Predictable phase</b> — easy to keep timing perfectly even.</li>
+              <li><b>Hungry</b> — a sharp filter may need hundreds of taps, each one a multiply-add per sample.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>IIR — with feedback</h4>
+            <div class="diagram" aria-hidden="true">
+              <svg viewBox="0 0 300 120" role="img" aria-label="IIR block diagram: input is summed with a scaled copy of the previous output, which loops back">
+                <defs><marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+                <g fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M8 34 H96" marker-end="url(#arw2)"/>
+                  <circle cx="112" cy="34" r="13"/>
+                  <path d="M125 34 H292" marker-end="url(#arw2)"/>
+                  <path d="M205 34 V92 H150" />
+                  <path d="M150 92 H128 V50" marker-end="url(#arw2)"/>
+                  <rect x="168" y="80" width="40" height="24" rx="4"/>
+                </g>
+                <g fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+                  <text x="22" y="26">x[n]</text>
+                  <text x="112" y="39">+</text>
+                  <text x="284" y="26">y[n]</text>
+                  <text x="188" y="96">×a₁</text>
+                  <text x="150" y="112" fill-opacity=".65">output loops back in</text>
+                </g>
+              </svg>
+            </div>
+            <ul>
+              <li><b>Super efficient</b> — a handful of coefficients can do what takes an FIR hundreds of taps.</li>
+              <li><b>Can go unstable</b> — if the feedback gain reaches 1, the echo never fades. Past 1, it explodes.</li>
+              <li><b>Touchy</b> — tiny rounding errors recirculate forever (remember this in Section 5).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>One click, two fates</h3></div>
+          <p class="lab-sub">Both filters receive the same single click. The FIR's response ends when the click leaves its window. The IIR's response is the click re-echoing through feedback — drag the feedback gain and watch the tail stretch… then push it past 1.0 and watch it blow up.</p>
+          <canvas class="scope" id="iirCanvas" width="900" height="300" aria-label="Bar chart comparing FIR and IIR impulse responses"></canvas>
+          <div class="legend">
+            <span><i style="background:#f0b64f"></i>FIR response (9 taps)</span>
+            <span><i style="background:#3ce8bd"></i>IIR response (feedback)</span>
+          </div>
+          <div class="controls">
+            <div class="ctl">
+              <label for="iirGain">Feedback gain a₁</label>
+              <input type="range" id="iirGain" min="0" max="1.08" step="0.01" value="0.72" />
+              <output id="iirGainOut">0.72</output>
+            </div>
+            <button class="btn danger" id="iirBoom" type="button">Push past 1.0 💥</button>
+          </div>
+          <div class="readout" id="iirReadout"></div>
+        </div>
+
+        <p>Real products use both. The EQ in a music app is usually built from IIR “biquad” sections — two feedback coefficients doing the work of a long FIR. Crossovers and linear-phase mastering tools lean on FIR. The engineer's question is always the same trade: <strong>efficiency (IIR) vs. guaranteed stability (FIR)</strong>.</p>
+      </section>
+
+      <!-- ================= SECTION 3 ================= -->
+      <section id="s3">
+        <div class="sec-head"><span class="sec-num">03</span><h2>Convolution: the one operation to rule them all</h2></div>
+        <p>Look again at the FIR equation: <em>multiply recent samples by weights, add them up, slide forward one sample, repeat.</em> That slide-and-multiply-add pattern has a name — <strong>convolution</strong> — and it is quite possibly the most important operation in all of signal processing.</p>
+        <p>Here's the recipe, one output sample at a time:</p>
+        <div class="stat-row">
+          <div class="stat"><span class="v">1 · Flip</span><span class="k">Reverse the kernel left-to-right. (Yes, really — convolution flips. In symmetric filters like ours you can't tell, but the math insists.)</span></div>
+          <div class="stat"><span class="v">2 · Slide</span><span class="k">Park the flipped kernel over the input, starting at the left edge, and slide it one sample at a time.</span></div>
+          <div class="stat"><span class="v">3 · Multiply-add</span><span class="k">At each stop, multiply every overlapping pair and add the products. That sum is one output sample.</span></div>
+        </div>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>Flip &amp; slide machine</h3></div>
+          <p class="lab-sub">Convolving a small signal <span class="mono">x</span> with the smoothing kernel <span class="mono">h = [¼, ½, ¼]</span>. Step through it: at each stop the overlapping pairs multiply, the products add, and one more output sample lands below.</p>
+          <canvas class="scope" id="convCanvas" width="900" height="330" aria-label="Step-by-step convolution diagram: kernel sliding across the input signal, building the output"></canvas>
+          <div class="controls">
+            <button class="btn" id="convStep" type="button">Step ▸</button>
+            <button class="btn ghost" id="convAuto" type="button">Auto-play</button>
+            <button class="btn ghost" id="convReset" type="button">Reset</button>
+          </div>
+          <div class="readout" id="convReadout">Press <b>Step</b> to slide the kernel to its first stop.</div>
+        </div>
+
+        <div class="big-idea"><b>The payoff:</b> convolution doesn't care what the kernel <em>means</em>. Change the kernel and the same flip-slide-multiply-add machine becomes a completely different effect. One operation, endless personalities:</div>
+        <div class="trio">
+          <div class="card"><h4>🎚 Filtering</h4><p>Kernel = a few taps (like [¼, ½, ¼]). Convolving smooths, sharpens, or picks out a frequency band. Every filter from Section 1 <em>is</em> a convolution.</p></div>
+          <div class="card"><h4>🏛 Reverb</h4><p>Kernel = a recording of a real room's echo pattern (its <em>impulse response</em>) — thousands of taps of decaying reflections. Convolve dry audio with it and the audio sounds like it was performed in that room.</p></div>
+          <div class="card"><h4>🔊 Crossovers</h4><p>Convolve the same song with a low-pass kernel → feed the woofer. Convolve with a high-pass kernel → feed the tweeter. Two convolutions split one signal into the bands each speaker handles best.</p></div>
+        </div>
+        <p>And it's not just audio: image blurring, edge detection, and the “convolutional” in convolutional neural networks are this same operation wearing different clothes. Learn flip-and-slide once, and you own a piece of half of modern computing.</p>
+      </section>
+
+      <!-- ================= SECTION 4 ================= -->
+      <section id="s4">
+        <div class="sec-head"><span class="sec-num">04</span><h2>Why the frequency domain exists</h2></div>
+        <p>Convolution has one problem: for long kernels it's <em>slow</em>. A one-second reverb kernel at 48 kHz has 48,000 taps — that's 48,000 multiply-adds for <strong>every single output sample</strong>, 2.3 billion per second of audio. There has to be a cheaper way, and there is — by changing your point of view.</p>
+        <p>Any signal can be re-described as a stack of sine waves: which frequencies are present, and how strong each one is. That's the signal's <strong>frequency domain</strong> picture (Part 1's FFT section showed how to compute it). And in that picture, something magical happens:</p>
+        <div class="big-idea"><b>Convolution in time = multiplication in frequency.</b> Filter a signal by transforming it, multiplying each frequency bin by the filter's response at that frequency, and transforming back. A 48,000-tap nightmare becomes a row of simple one-by-one multiplications.</div>
+        <p>That's why an EQ is so natural in the frequency domain: “turn the bass up” literally means “multiply the low bins by 1.5.” Noise reduction works the same way — estimate which bins are mostly speech and which are mostly hiss, multiply the hissy ones toward zero.</p>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>Two ways to pay for the same filter</h3></div>
+          <p class="lab-sub">Compare the arithmetic cost of filtering a block of audio directly (convolution) vs. via FFT (transform → multiply → transform back). Grow the block and watch the direct method's cost explode while the FFT's barely climbs.</p>
+          <div class="controls">
+            <div class="ctl">
+              <label for="fftSize">Block length</label>
+              <input type="range" id="fftSize" min="5" max="15" step="1" value="8" />
+              <output id="fftSizeOut">256</output>
+            </div>
+          </div>
+          <canvas class="scope" id="fftCanvas" width="900" height="240" aria-label="Bar chart comparing operations needed for direct convolution versus FFT-based filtering"></canvas>
+          <div class="readout" id="fftReadout"></div>
+        </div>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>EQ = multiplication, literally</h3></div>
+          <p class="lab-sub">Below is a signal's spectrum — the height of each bar is how much of that frequency is present. The three sliders multiply whole bands of bins. No convolution anywhere: just ×.</p>
+          <canvas class="scope" id="eqCanvas" width="900" height="240" aria-label="Spectrum bars with bass, mid and treble bands scaled by slider gains"></canvas>
+          <div class="controls">
+            <div class="ctl"><label for="eqBass">Bass ×</label><input type="range" id="eqBass" min="0" max="2" step="0.05" value="1" /><output id="eqBassOut">1.00</output></div>
+            <div class="ctl"><label for="eqMid">Mids ×</label><input type="range" id="eqMid" min="0" max="2" step="0.05" value="1" /><output id="eqMidOut">1.00</output></div>
+            <div class="ctl"><label for="eqTreble">Treble ×</label><input type="range" id="eqTreble" min="0" max="2" step="0.05" value="1" /><output id="eqTrebleOut">1.00</output></div>
+          </div>
+          <div class="readout" id="eqReadout">Every bin in a band is multiplied by the same gain — that <b>is</b> the filter.</div>
+        </div>
+
+        <p>The catch: transforming isn't free, and it works on blocks, not single samples — you must collect a block (adding a little delay) before you can process it. DSP engineering is full of exactly this trade: <strong>a bit of latency in exchange for a mountain of saved arithmetic.</strong> Section 6 puts a price on both.</p>
+      </section>
+
+      <!-- ================= SECTION 5 ================= -->
+      <section id="s5">
+        <div class="sec-head"><span class="sec-num">05</span><h2>Fixed-point vs. floating-point: why DSPs think in integers</h2></div>
+        <p>Your laptop's CPU loves <strong>floating-point</strong> numbers — values like <code>3.14159 × 10⁻⁴</code> that can be astronomically large or microscopically tiny. Dedicated DSP chips (like the HiFi-class cores in car head units and earbuds) often prefer <strong>fixed-point</strong>: plain integers, where you simply <em>agree</em> that the decimal point sits in a fixed place. The integer <code>16384</code> in “Q15” format means 0.5, because the scale is 2¹⁵ = 32768 and <code>16384 / 32768 = 0.5</code>.</p>
+        <p>Why bother? Integer hardware is smaller, cheaper, and sips power — decisive when the chip lives in an earbud or must run for pennies inside a car. But fixed-point exacts two prices:</p>
+        <div class="duo">
+          <div class="card">
+            <h4>Price 1 — Quantization noise</h4>
+            <p>Only whole steps exist. A smooth value like 0.50003 must snap to the nearest step, and that snap error is a tiny bit of noise added to your audio. Fewer bits → bigger steps → more noise. Rule of thumb: <b>each bit buys ≈ 6 dB of quiet</b>.</p>
+          </div>
+          <div class="card">
+            <h4>Price 2 — No headroom</h4>
+            <p>Q15 tops out just below 1.0. Multiply two loud samples, or let an IIR's feedback build up, and the result can exceed the ceiling — that's <b>overflow</b>. Fixed-point code wraps around (giant positive becomes giant negative: a violent click) or saturates if you pay for the guard. Floating-point, with its enormous range, almost never overflows.</p>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>Snap to the grid</h3></div>
+          <p class="lab-sub">A smooth sine wave forced onto a fixed-point grid. Lower the bit depth and the staircase gets chunkier while the measured signal-to-noise ratio falls — about 6 dB per bit, just like the rule says.</p>
+          <canvas class="scope" id="fxCanvas" width="900" height="280" aria-label="Sine wave quantized to a fixed-point grid at selectable bit depth"></canvas>
+          <div class="controls">
+            <div class="ctl">
+              <label for="fxBits">Bit depth</label>
+              <input type="range" id="fxBits" min="2" max="16" step="1" value="6" />
+              <output id="fxBitsOut">6</output>
+            </div>
+          </div>
+          <div class="readout" id="fxReadout"></div>
+        </div>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>Overflow: the wrap-around cliff</h3></div>
+          <p class="lab-sub">Crank the gain on a signal stored as Q15 fixed-point. Past ×1.0 the peaks don't flatten politely — they <b>wrap</b> to the opposite extreme, shredding the wave. The floating-point version of the same signal just keeps growing, unbothered.</p>
+          <canvas class="scope" id="ovCanvas" width="900" height="280" aria-label="Waveform showing fixed-point wrap-around distortion versus clean floating-point headroom as gain increases"></canvas>
+          <div class="controls">
+            <div class="ctl">
+              <label for="ovGain">Gain ×</label>
+              <input type="range" id="ovGain" min="0.5" max="3" step="0.05" value="1" />
+              <output id="ovGainOut">1.00</output>
+            </div>
+          </div>
+          <div class="readout" id="ovReadout"></div>
+        </div>
+
+        <p>So embedded DSP code is a constant budgeting act: track how big numbers can get at every stage (“gain staging”), leave headroom before filters, and remember that an IIR's feedback happily recirculates rounding noise forever. The math from Sections 1–4 is identical — fixed-point just demands you respect the grid it lives on.</p>
+      </section>
+
+      <!-- ================= SECTION 6 ================= -->
+      <section id="s6">
+        <div class="sec-head"><span class="sec-num">06</span><h2>The real-time budget: racing the sample clock</h2></div>
+        <p>Offline, slow is fine — a photo filter can take all afternoon. Audio is different. At 48 kHz, a new sample arrives every <strong>20.8 microseconds</strong>, whether your math is done or not. Miss the deadline and the output buffer has nothing new to play: you get the gap, click, or robotic stutter Part 1 called an <strong>underrun</strong>.</p>
+        <p>Nobody processes one sample at a time, though — that's too much bookkeeping overhead. Instead, audio moves in <strong>frames</strong> (blocks): collect, say, 480 samples = 10 ms of sound, then process the whole block in one burst. The deal is simple and absolute:</p>
+        <div class="big-idea"><b>The frame deadline:</b> all processing for a frame must finish within the frame's duration. 480 samples at 48 kHz buys you 10 ms of compute — on a 600 MHz DSP that's 6 million clock cycles, your entire budget. Every filter tap, every FFT, every multiply spends from it.</div>
+        <p>Engineers budget this in <strong>MIPS</strong> (millions of instructions per second) or as a percentage: “the echo canceller takes 180 MIPS of our 600.” And the frame size itself is a trade — bigger frames are more efficient (less overhead, FFT-friendly) but add latency, because you wait to fill the frame before you start. This is the cold-vs-continuous latency story from Part 1, now with a price tag.</p>
+
+        <div class="lab">
+          <div class="lab-head"><span class="lab-tag">Lab</span><h3>Build a processing chain, beat the clock</h3></div>
+          <p class="lab-sub">You have one 10 ms frame on a 600 MHz DSP (6.0M cycles). Toggle the algorithms your product team wants and watch the budget. Then run the race: if total compute exceeds the frame, frames start dropping — those are underruns, and listeners hear every one.</p>
+          <div class="chips" id="algoChips" role="group" aria-label="Toggle processing algorithms"></div>
+          <div class="budgetbar" id="budgetBar"><div class="fill" id="budgetFill"></div></div>
+          <div class="readout" id="budgetReadout"></div>
+          <canvas class="scope" id="raceCanvas" width="900" height="190" style="margin-top:14px" aria-label="Animation of frames being processed against their deadlines; over-budget chains drop frames"></canvas>
+          <div class="controls">
+            <button class="btn" id="raceToggle" type="button">▶ Run the race</button>
+            <span class="mono" id="raceStats" style="font-size:14.5px"></span>
+          </div>
+        </div>
+
+        <div class="big-idea warn"><b>When the math doesn't fit:</b> there's no partial credit. The chip can't “try harder” — options are to optimize the code, shrink the algorithm (fewer taps, shorter FFT), lower the sample rate, or buy a faster DSP. This is why Sections 4 and 5 matter in real products: FFT-domain processing and tight fixed-point code aren't academic elegance, they're how the whole feature list fits inside 10 milliseconds.</div>
+        <p>And with that, the loop closes. Weighted averages became filters; filters became convolution; convolution forced us into the frequency domain; the frequency domain and integer math keep the whole thing affordable; and the sample clock collects payment 48,000 times a second. That's DSP.</p>
+      </section>
+
+      <!-- ================= QUIZ ================= -->
+      <section id="quiz">
+        <div class="sec-head"><span class="sec-num">✓</span><h2>Check yourself</h2></div>
+        <p>Six questions, one per section. Tap an answer — no grades leave this page.</p>
+        <div id="quizBox"></div>
+        <p id="quiz-score" aria-live="polite"></p>
+      </section>
+
+      <footer>
+        <p><strong>DSP Basics — Visual Guide</strong> · Part 2 of the audio series. Companion: <a href="https://nagarjunagurugari.github.io/audio_basics/">Audio Basics to Algorithms — Visual Guide (Part 1)</a> — sound, speakers, sampling, ALSA, and latency.</p>
+        <p>Where to go next: adaptive filters (the idea behind echo cancellation and ANC), multirate processing, and the overlap-add method that glues FFT blocks back together — Part 3 material.</p>
+      </footer>
+
+    </div>
+
+    <script>
+    "use strict";
+    var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function fitCanvas(cv) {
+      var dpr = window.devicePixelRatio || 1;
+      var w = cv.clientWidth || cv.width;
+      var ratio = cv.height / cv.width;
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(w * ratio * dpr);
+      var ctx = cv.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx: ctx, W: w, H: w * ratio };
+    }
+    function cssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+    function scopeColors() {
+      return {
+        bg: cssVar("--scope") || "#0c1a15",
+        grid: cssVar("--scope-grid") || "#1e3a30",
+        line: cssVar("--scope-line") || "#3ce8bd",
+        dim: cssVar("--scope-dim") || "#8fb8ab"
+      };
+    }
+    function drawGrid(ctx, W, H, c) {
+      ctx.fillStyle = c.bg; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (var i = 1; i < 8; i++) { ctx.moveTo(W * i / 8, 0); ctx.lineTo(W * i / 8, H); }
+      for (var j = 1; j < 4; j++) { ctx.moveTo(0, H * j / 4); ctx.lineTo(W, H * j / 4); }
+      ctx.stroke();
+      ctx.strokeStyle = c.dim; ctx.globalAlpha = .55;
+      ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    function fmt(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(2) + " B";
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + " M";
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + " k";
+      return "" + Math.round(n);
+    }
+
+    /* ============ LAB 1: moving average ============ */
+    (function () {
+      var cv = document.getElementById("maCanvas");
+      var slider = document.getElementById("maTaps");
+      var out = document.getElementById("maTapsOut");
+      var readout = document.getElementById("maReadout");
+      if (!cv) return;
+      var N = 900, sig = new Float32Array(N), seed = 7;
+      function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647 * 2 - 1; }
+      var noise = new Float32Array(N);
+      for (var i = 0; i < N; i++) noise[i] = rnd();
+      for (i = 0; i < N; i++) {
+        var t = i / N;
+        sig[i] = 0.62 * Math.sin(2 * Math.PI * (2.2 * t)) + 0.28 * Math.sin(2 * Math.PI * (5.5 * t) + 1.2) + 0.30 * noise[i];
+      }
+      var phase = 0, raf = null;
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var taps = parseInt(slider.value, 10);
+        var filt = new Float32Array(N);
+        var acc = 0;
+        for (var i = 0; i < N; i++) {
+          acc += sig[i];
+          if (i - taps >= 0) acc -= sig[i - taps];
+          filt[i] = acc / Math.min(taps, i + 1);
+        }
+        var span = Math.floor(W * 0.92), start = Math.floor(phase) % (N - span);
+        function plot(arr, color, width, alpha) {
+          ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          for (var px = 0; px < span; px++) {
+            var v = arr[start + px];
+            var x = 12 + (W - 24) * px / span;
+            var y = H / 2 - v * H * 0.40;
+            if (px === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        plot(sig, "#5d7a6f", 1.2, 0.85);
+        plot(filt, c.line, 2.4, 1);
+        out.textContent = taps;
+        readout.innerHTML = "Every output sample = average of the last <b>" + taps + "</b> inputs, each weighted <b>1/" + taps + " ≈ " + (1 / taps).toFixed(3) + "</b>. " +
+          (taps === 1 ? "A window of 1 changes nothing — the noise passes straight through." :
+           taps <= 15 ? "Noise shrinks roughly by √" + taps + " ≈ " + Math.sqrt(taps).toFixed(1) + "× while the slow wave survives." :
+           "Smoother still — but watch the peaks: heavy averaging flattens the signal itself and smears sharp edges. There is no free lunch.");
+      }
+      slider.addEventListener("input", render);
+      function tick() { phase += 0.55; render(); raf = requestAnimationFrame(tick); }
+      if (!REDUCED) raf = requestAnimationFrame(tick); else render();
+      window.addEventListener("resize", render);
+    })();
+
+    /* ============ LAB 2: FIR vs IIR impulse response ============ */
+    (function () {
+      var cv = document.getElementById("iirCanvas");
+      var slider = document.getElementById("iirGain");
+      var out = document.getElementById("iirGainOut");
+      var readout = document.getElementById("iirReadout");
+      var boom = document.getElementById("iirBoom");
+      if (!cv) return;
+      var LEN = 72;
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var a = parseFloat(slider.value);
+        var fir = [], iir = [];
+        var taps = 9;
+        for (var n = 0; n < LEN; n++) {
+          fir.push(n < taps ? 1 / taps : 0);
+          if (n === 0) iir.push(1); else iir.push((iir[n - 1] || 0) * a);
+        }
+        var maxV = 1.15;
+        if (a >= 1) { maxV = Math.max(1.15, Math.pow(a, 30)); }
+        var base = H * 0.86, top = H * 0.08;
+        var bw = (W - 70) / LEN;
+        function stems(arr, color, dy) {
+          ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+          for (var n = 0; n < LEN; n++) {
+            var v = arr[n];
+            var y = base + dy - (v / maxV) * (base - top);
+            if (y < -40) y = -40; if (y > H + 40) y = H + 40;
+            var x = 40 + n * bw;
+            ctx.beginPath(); ctx.moveTo(x, base + dy); ctx.lineTo(x, y); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+          }
+        }
+        ctx.fillStyle = c.dim; ctx.font = "12px 'IBM Plex Mono', monospace";
+        ctx.fillText("FIR — dies after 9 samples", 40, 20);
+        stems(fir, "#f0b64f", -H * 0.40);
+        ctx.fillStyle = c.dim;
+        ctx.fillText("IIR — one feedback coefficient a₁", 40, H * 0.60);
+        stems(iir, c.line, H * 0.06);
+        out.textContent = a.toFixed(2);
+        var tail = a < 1 ? Math.round(Math.log(0.01) / Math.log(Math.max(a, 0.001))) : Infinity;
+        if (a < 1) readout.innerHTML = "a₁ = <b>" + a.toFixed(2) + "</b> — each echo is " + Math.round(a * 100) + "% of the previous one. The click is still audible (above 1% size) for about <b>" + tail + " samples</b>. Cheap, and it always settles.";
+        else if (a === 1) readout.innerHTML = "a₁ = <b>1.00</b> — the echo never decays and never grows. The filter rings <b>forever</b>: a perfectly sustained note from a single click.";
+        else readout.innerHTML = "a₁ = <b>" + a.toFixed(2) + "</b> — every echo is BIGGER than the last. Within a second of real audio this overflows any number format: <b>BOOM — unstable.</b> This is the feedback squeal of a mic near a speaker, in math form.";
+      }
+      slider.addEventListener("input", render);
+      boom.addEventListener("click", function () {
+        slider.value = "1.05"; render();
+        slider.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+      });
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 3: convolution flip & slide ============ */
+    (function () {
+      var cv = document.getElementById("convCanvas");
+      var readout = document.getElementById("convReadout");
+      var btnStep = document.getElementById("convStep");
+      var btnAuto = document.getElementById("convAuto");
+      var btnReset = document.getElementById("convReset");
+      if (!cv) return;
+      var x = [0, 2, 5, 4, 1, 3, 6, 2, 0, 1];
+      var h = [0.25, 0.5, 0.25];
+      var hFlip = [h[2], h[1], h[0]]; // symmetric kernel: flip looks identical — called out in text
+      var yLen = x.length + h.length - 1;
+      var step = -1, timer = null;
+      function output(n) {
+        var s = 0;
+        for (var k = 0; k < h.length; k++) {
+          var xi = n - k;
+          if (xi >= 0 && xi < x.length) s += x[xi] * h[k];
+        }
+        return s;
+      }
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var cell = Math.min(56, (W - 60) / yLen);
+        var x0 = (W - cell * yLen) / 2;
+        var baseX = H * 0.46, baseY = H * 0.90, scale = H * 0.030;
+        ctx.font = "12px 'IBM Plex Mono', monospace";
+        // input row
+        ctx.fillStyle = c.dim; ctx.fillText("x[n] — input", W - 118, 20);
+        for (var i = 0; i < x.length; i++) {
+          var cx = x0 + i * cell + cell / 2;
+          var active = step >= 0 && i <= step && i >= step - h.length + 1;
+          ctx.strokeStyle = active ? c.line : "#5d7a6f";
+          ctx.fillStyle = active ? c.line : "#5d7a6f";
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(cx, baseX); ctx.lineTo(cx, baseX - x[i] * scale); ctx.stroke();
+          ctx.beginPath(); ctx.arc(cx, baseX - x[i] * scale, 3.4, 0, 7); ctx.fill();
+          ctx.fillStyle = c.dim; ctx.fillText("" + x[i], cx - 3, baseX + 16);
+        }
+        // kernel bracket at current position
+        if (step >= 0 && step < yLen) {
+          var kx = x0 + (step - h.length + 1) * cell;
+          ctx.strokeStyle = "#f0b64f"; ctx.lineWidth = 1.6;
+          ctx.strokeRect(kx + 2, baseX - 118, cell * h.length - 4, 34);
+          ctx.fillStyle = "#f0b64f";
+          ctx.fillText("h flipped", kx + 4, baseX - 126);
+          for (var k = 0; k < h.length; k++) {
+            ctx.fillText("" + hFlip[k], kx + k * cell + cell / 2 - 10, baseX - 96);
+          }
+          ctx.strokeStyle = "#f0b64f"; ctx.globalAlpha = .5;
+          ctx.beginPath(); ctx.moveTo(x0 + step * cell + cell / 2, baseX - 84); ctx.lineTo(x0 + step * cell + cell / 2, baseY - 62); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // output row
+        ctx.fillStyle = c.dim; ctx.fillText("y[n] — output (convolution)", x0, baseY - 70 > baseX + 26 ? baseY - 70 : baseX + 26);
+        for (var n = 0; n < yLen; n++) {
+          var v = output(n);
+          var ox = x0 + n * cell + cell / 2;
+          var done = step >= n;
+          ctx.strokeStyle = done ? c.line : "#33524a";
+          ctx.fillStyle = done ? c.line : "#33524a";
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(ox, baseY); ctx.lineTo(ox, baseY - v * scale); ctx.stroke();
+          ctx.beginPath(); ctx.arc(ox, baseY - v * scale, 3.4, 0, 7); ctx.fill();
+          if (done) { ctx.fillStyle = c.dim; ctx.fillText(("" + (Math.round(v * 100) / 100)), ox - 12, baseY + 16); }
+        }
+        if (step >= 0 && step < yLen) {
+          var parts = [], s = 0;
+          for (var k2 = 0; k2 < h.length; k2++) {
+            var xi2 = step - k2;
+            if (xi2 >= 0 && xi2 < x.length) { parts.push(x[xi2] + "×" + h[k2]); s += x[xi2] * h[k2]; }
+          }
+          readout.innerHTML = "Stop " + (step + 1) + " of " + yLen + " — y[" + step + "] = " + parts.join(" + ") + " = <b>" + (Math.round(s * 100) / 100) + "</b>. " +
+            (step === yLen - 1 ? "Done! The whole output is built — and notice the result is a <b>smoothed</b> version of x: convolution with [¼, ½, ¼] is the weighted-average filter from Section 1." : "Slide one step right and repeat.");
+        }
+        btnStep.disabled = step >= yLen - 1;
+      }
+      function doStep() { if (step < yLen - 1) { step++; render(); } }
+      btnStep.addEventListener("click", doStep);
+      btnReset.addEventListener("click", function () {
+        step = -1; stopAuto();
+        readout.innerHTML = "Press <b>Step</b> to slide the kernel to its first stop.";
+        render();
+      });
+      function stopAuto() { if (timer) { clearInterval(timer); timer = null; btnAuto.textContent = "Auto-play"; } }
+      btnAuto.addEventListener("click", function () {
+        if (timer) { stopAuto(); return; }
+        btnAuto.textContent = "Pause";
+        timer = setInterval(function () {
+          if (step >= yLen - 1) { stopAuto(); return; }
+          doStep();
+        }, REDUCED ? 200 : 750);
+      });
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 4a: convolution vs FFT cost ============ */
+    (function () {
+      var cv = document.getElementById("fftCanvas");
+      var slider = document.getElementById("fftSize");
+      var out = document.getElementById("fftSizeOut");
+      var readout = document.getElementById("fftReadout");
+      if (!cv) return;
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var N = Math.pow(2, parseInt(slider.value, 10));
+        var K = N / 2; // kernel length scales with block (e.g. a reverb tail)
+        var direct = N * K;
+        var fft = 3 * N * Math.log2(N) + N; // fwd + inverse FFT + multiply
+        out.textContent = N + " samples";
+        var maxV = Math.max(direct, fft);
+        var bw = Math.min(150, W * 0.26);
+        var y0 = H * 0.22, bh = 44;
+        function bar(y, frac, color, label, val) {
+          ctx.fillStyle = "#33524a"; ctx.fillRect(150, y, W - 190, bh);
+          ctx.fillStyle = color; ctx.fillRect(150, y, Math.max(3, (W - 190) * frac), bh);
+          ctx.fillStyle = c.dim; ctx.font = "600 13px 'Archivo', sans-serif"; ctx.textAlign = "right";
+          ctx.fillText(label, 140, y + bh / 2 + 5); ctx.textAlign = "left";
+          ctx.fillStyle = color; ctx.font = "600 15px 'IBM Plex Mono', monospace";
+          ctx.fillText(fmt(val) + " ops", 158, y + bh / 2 + 5);
+        }
+        bar(y0, direct / maxV, "#f0b64f", "Direct convolution", direct);
+        bar(y0 + bh + 26, fft / maxV, c.line, "FFT → × → back", fft);
+        var ratio = direct / fft;
+        readout.innerHTML = "Filtering a <b>" + N + "</b>-sample block with a " + K + "-tap kernel: direct convolution needs <b>" + fmt(direct) + "</b> multiply-adds; the FFT route needs about <b>" + fmt(fft) + "</b> — roughly <b>" + (ratio >= 10 ? Math.round(ratio) + "×" : ratio.toFixed(1) + "×") + " less arithmetic</b>, and the gap widens as blocks grow. (For tiny kernels direct wins — the FFT's fixed overhead only pays off at scale.)";
+      }
+      slider.addEventListener("input", render);
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 4b: EQ = multiplication ============ */
+    (function () {
+      var cv = document.getElementById("eqCanvas");
+      if (!cv) return;
+      var sliders = { bass: document.getElementById("eqBass"), mid: document.getElementById("eqMid"), treb: document.getElementById("eqTreble") };
+      var outs = { bass: document.getElementById("eqBassOut"), mid: document.getElementById("eqMidOut"), treb: document.getElementById("eqTrebleOut") };
+      var BINS = 48, base = [], seed = 31;
+      function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+      for (var i = 0; i < BINS; i++) {
+        base.push(0.85 * Math.exp(-Math.pow((i - 9) / 7, 2)) + 0.55 * Math.exp(-Math.pow((i - 24) / 6, 2)) + 0.4 * Math.exp(-Math.pow((i - 40) / 5, 2)) + 0.10 + 0.06 * rnd());
+      }
+      function gainFor(i) {
+        var g = parseFloat(i < 16 ? sliders.bass.value : i < 32 ? sliders.mid.value : sliders.treb.value);
+        return g;
+      }
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var bw = (W - 40) / BINS;
+        var maxV = 1.9;
+        for (var i = 0; i < BINS; i++) {
+          var g = gainFor(i);
+          var v = base[i] * g;
+          var bh = (v / maxV) * (H - 56);
+          ctx.fillStyle = g > 1.02 ? "#f0b64f" : g < 0.98 ? "#5d8a7d" : c.line;
+          ctx.fillRect(20 + i * bw + 1.5, H - 30 - bh, bw - 3, bh);
+        }
+        ctx.fillStyle = c.dim; ctx.font = "12px 'IBM Plex Mono', monospace";
+        ctx.fillText("BASS ×" + parseFloat(sliders.bass.value).toFixed(2), 22, H - 10);
+        ctx.fillText("MIDS ×" + parseFloat(sliders.mid.value).toFixed(2), 22 + bw * 16, H - 10);
+        ctx.fillText("TREBLE ×" + parseFloat(sliders.treb.value).toFixed(2), 22 + bw * 32, H - 10);
+        ctx.strokeStyle = c.dim; ctx.globalAlpha = .4; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.moveTo(20 + bw * 16, 12); ctx.lineTo(20 + bw * 16, H - 34); ctx.moveTo(20 + bw * 32, 12); ctx.lineTo(20 + bw * 32, H - 34); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        outs.bass.textContent = parseFloat(sliders.bass.value).toFixed(2);
+        outs.mid.textContent = parseFloat(sliders.mid.value).toFixed(2);
+        outs.treb.textContent = parseFloat(sliders.treb.value).toFixed(2);
+      }
+      ["bass", "mid", "treb"].forEach(function (k) { sliders[k].addEventListener("input", render); });
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 5a: quantization ============ */
+    (function () {
+      var cv = document.getElementById("fxCanvas");
+      var slider = document.getElementById("fxBits");
+      var out = document.getElementById("fxBitsOut");
+      var readout = document.getElementById("fxReadout");
+      if (!cv) return;
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var bits = parseInt(slider.value, 10);
+        var levels = Math.pow(2, bits);
+        var step = 2 / levels;
+        // grid lines for steps
+        ctx.strokeStyle = c.dim; ctx.globalAlpha = .35; ctx.lineWidth = 1;
+        var maxLines = Math.min(levels, 32);
+        for (var li = 0; li <= maxLines; li++) {
+          var gy = 16 + (H - 32) * li / maxLines;
+          ctx.beginPath(); ctx.moveTo(10, gy); ctx.lineTo(W - 10, gy); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        var M = 240, sigE = 0, errE = 0;
+        function q(v) { return Math.max(-1, Math.min(1 - step, Math.floor((v + 1) / step) * step - 1 + step / 2)); }
+        // smooth reference
+        ctx.strokeStyle = "#5d7a6f"; ctx.lineWidth = 1.4; ctx.beginPath();
+        for (var i = 0; i <= M; i++) {
+          var v = 0.88 * Math.sin(2 * Math.PI * 2.2 * i / M);
+          var x = 14 + (W - 28) * i / M, y = H / 2 - v * (H / 2 - 18);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        // quantized staircase
+        ctx.strokeStyle = c.line; ctx.lineWidth = 2.4; ctx.beginPath();
+        for (i = 0; i < M; i++) {
+          var v1 = 0.88 * Math.sin(2 * Math.PI * 2.2 * i / M);
+          var v2 = 0.88 * Math.sin(2 * Math.PI * 2.2 * (i + 1) / M);
+          var qv = q(v1);
+          sigE += v1 * v1; errE += (v1 - qv) * (v1 - qv);
+          var xa = 14 + (W - 28) * i / M, xb = 14 + (W - 28) * (i + 1) / M;
+          var ya = H / 2 - qv * (H / 2 - 18), yb = H / 2 - q(v2) * (H / 2 - 18);
+          ctx.moveTo(xa, ya); ctx.lineTo(xb, ya); ctx.lineTo(xb, yb);
+        }
+        ctx.stroke();
+        var snr = 10 * Math.log10(sigE / Math.max(errE, 1e-12));
+        out.textContent = bits;
+        readout.innerHTML = "<b>" + bits + " bits</b> → " + levels.toLocaleString() + " possible values. Measured SNR ≈ <b>" + snr.toFixed(1) + " dB</b> (theory: 6.02 × " + bits + " + 1.76 ≈ " + (6.02 * bits + 1.76).toFixed(0) + " dB). " +
+          (bits >= 12 ? "At CD quality (16 bits) the steps are so fine the noise sits ~96 dB down — inaudible." :
+           bits >= 6 ? "Clearly audible as a gritty fuzz under quiet passages — this is the 'bit-crushed' sound of retro games." :
+           "The wave is barely recognizable — the snap error IS the signal now. Early speech chips lived here, which is why old robot voices sound crunchy.");
+      }
+      slider.addEventListener("input", render);
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 5b: fixed-point overflow ============ */
+    (function () {
+      var cv = document.getElementById("ovCanvas");
+      var slider = document.getElementById("ovGain");
+      var out = document.getElementById("ovGainOut");
+      var readout = document.getElementById("ovReadout");
+      if (!cv) return;
+      function render() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var g = parseFloat(slider.value);
+        var M = 260;
+        function val(i) { return 0.72 * Math.sin(2 * Math.PI * 1.6 * i / M) + 0.18 * Math.sin(2 * Math.PI * 4.7 * i / M + 0.7); }
+        function wrap(v) { while (v >= 1) v -= 2; while (v < -1) v += 2; return v; }
+        var halfH = (H / 2 - 20) / 2;
+        // floating point (top half)
+        ctx.fillStyle = c.dim; ctx.font = "12px 'IBM Plex Mono', monospace";
+        ctx.fillText("FLOAT — headroom to spare", 14, 20);
+        var midF = H * 0.27;
+        ctx.strokeStyle = c.line; ctx.lineWidth = 2; ctx.beginPath();
+        for (var i = 0; i <= M; i++) {
+          var v = val(i) * g;
+          var x = 14 + (W - 28) * i / M;
+          var y = midF - Math.max(-1.6, Math.min(1.6, v)) * halfH * 0.62;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        // fixed point (bottom half)
+        ctx.fillStyle = c.dim;
+        ctx.fillText("FIXED Q15 — wraps at ±1.0", 14, H * 0.55);
+        var midX = H * 0.78;
+        ctx.strokeStyle = "#ff7a6b"; ctx.globalAlpha = .8; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(10, midX - halfH); ctx.lineTo(W - 10, midX - halfH); ctx.moveTo(10, midX + halfH); ctx.lineTo(W - 10, midX + halfH); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#f0b64f"; ctx.lineWidth = 2; ctx.beginPath();
+        var clipped = 0;
+        for (i = 0; i <= M; i++) {
+          var raw = val(i) * g;
+          if (Math.abs(raw) >= 1) clipped++;
+          var w = wrap(raw);
+          var x2 = 14 + (W - 28) * i / M;
+          var y2 = midX - w * halfH;
+          if (i === 0) ctx.moveTo(x2, y2); else ctx.lineTo(x2, y2);
+        }
+        ctx.stroke();
+        out.textContent = g.toFixed(2);
+        readout.innerHTML = "Gain <b>×" + g.toFixed(2) + "</b>: " + (clipped === 0
+          ? "the fixed-point peaks still fit under ±1.0 — clean. Headroom remaining: " + (20 * Math.log10(1 / (0.9 * g))).toFixed(1) + " dB."
+          : "<b>" + Math.round(clipped / M * 100) + "% of samples overflow</b> in fixed-point. Each wrap flips a loud peak to the opposite extreme — that harsh buzz is why fixed-point code stages gain so carefully. The float version peaks at ×" + (0.9 * g).toFixed(2) + " and doesn't care.");
+      }
+      slider.addEventListener("input", render);
+      window.addEventListener("resize", render);
+      render();
+    })();
+
+    /* ============ LAB 6: real-time budget race ============ */
+    (function () {
+      var chipsBox = document.getElementById("algoChips");
+      var bar = document.getElementById("budgetBar");
+      var fill = document.getElementById("budgetFill");
+      var readout = document.getElementById("budgetReadout");
+      var cv = document.getElementById("raceCanvas");
+      var toggle = document.getElementById("raceToggle");
+      var stats = document.getElementById("raceStats");
+      if (!chipsBox || !cv) return;
+      var FRAME_MS = 10, CYCLES = 6.0; // 10 ms at 600 MHz = 6.0M cycles
+      var algos = [
+        { id: "eq", name: "5-band EQ (IIR biquads)", ms: 0.9, on: true },
+        { id: "comp", name: "Compressor", ms: 0.6, on: true },
+        { id: "ns", name: "Noise suppression (FFT)", ms: 3.1, on: false },
+        { id: "aec", name: "Echo canceller", ms: 2.8, on: false },
+        { id: "rev", name: "Reverb (long convolution)", ms: 4.6, on: false },
+        { id: "up", name: "Sample-rate converter", ms: 1.2, on: false }
+      ];
+      function total() { return algos.reduce(function (s, a) { return s + (a.on ? a.ms : 0); }, 0); }
+      algos.forEach(function (a) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", a.on ? "true" : "false");
+        b.innerHTML = a.name + " <span class='cost'>" + a.ms.toFixed(1) + " ms</span>";
+        b.addEventListener("click", function () {
+          a.on = !a.on; b.setAttribute("aria-pressed", a.on ? "true" : "false");
+          updateBudget();
+        });
+        chipsBox.appendChild(b);
+      });
+      function updateBudget() {
+        var t = total(), pct = Math.min(100, t / FRAME_MS * 100);
+        fill.style.width = pct + "%";
+        bar.classList.toggle("over", t > FRAME_MS);
+        var mips = t / FRAME_MS * 48000 / 1000 * 10; // rough: ms per 10ms frame → fraction of 600MHz ≈ MIPS share
+        readout.innerHTML = "Total processing: <b>" + t.toFixed(1) + " ms</b> of the " + FRAME_MS + " ms frame (" + Math.round(t / FRAME_MS * 100) + "% of the DSP, ≈ " + Math.round(t / FRAME_MS * 600) + " of 600 MIPS). " +
+          (t > FRAME_MS ? "<b>Over budget by " + (t - FRAME_MS).toFixed(1) + " ms</b> — every frame finishes late. Underruns are guaranteed." :
+           t > FRAME_MS * 0.85 ? "It fits — barely. One interrupt, one cache miss, and you're late. Real products leave this much headroom only when they have to." :
+           "Comfortably inside the deadline, with room for interrupts and housekeeping.");
+      }
+      // race animation
+      var running = false, raf = null, frameIdx = 0, done = 0, dropped = 0, progress = 0, lastTs = 0;
+      function drawRace() {
+        var f = fitCanvas(cv), ctx = f.ctx, W = f.W, H = f.H, c = scopeColors();
+        drawGrid(ctx, W, H, c);
+        var t = total();
+        var frac = Math.min(progress, 1);
+        var bw = W - 120;
+        // deadline line
+        var dx = 60 + bw;
+        ctx.strokeStyle = "#ff7a6b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(dx, 18); ctx.lineTo(dx, H - 34); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = "#ff7a6b"; ctx.font = "12px 'IBM Plex Mono', monospace";
+        ctx.fillText("deadline (10 ms)", dx - 118, 14 + 2);
+        // segments per algo
+        var x = 60, y = H * 0.38, bh = 34;
+        var colors = ["#3ce8bd", "#f0b64f", "#7fd1ff", "#ffb3a7", "#b7e4c7", "#e8c87a"];
+        var elapsed = frac * t;
+        ctx.fillStyle = c.dim; ctx.font = "12px 'IBM Plex Mono', monospace";
+        ctx.fillText("frame #" + (frameIdx + 1), 60, y - 14);
+        var acc = 0;
+        algos.forEach(function (a, ai) {
+          if (!a.on) return;
+          var wSeg = bw * (a.ms / FRAME_MS);
+          var segFrac = Math.max(0, Math.min(1, (elapsed - acc) / a.ms));
+          ctx.fillStyle = "#26443a"; ctx.fillRect(x, y, wSeg, bh);
+          ctx.fillStyle = colors[ai % colors.length];
+          ctx.fillRect(x, y, wSeg * segFrac, bh);
+          x += wSeg; acc += a.ms;
+        });
+        if (progress >= 1) {
+          ctx.font = "600 15px 'Archivo', sans-serif";
+          if (t <= FRAME_MS) { ctx.fillStyle = c.line; ctx.fillText("✓ finished with " + (FRAME_MS - t).toFixed(1) + " ms to spare — output sent", 60, y + bh + 30); }
+          else { ctx.fillStyle = "#ff7a6b"; ctx.fillText("✗ finished " + (t - FRAME_MS).toFixed(1) + " ms LATE — buffer underrun, listener hears a gap", 60, y + bh + 30); }
+        }
+        stats.textContent = "frames completed: " + done + " · underruns: " + dropped;
+      }
+      function loop(ts) {
+        if (!running) return;
+        if (!lastTs) lastTs = ts;
+        var dt = (ts - lastTs) / 1000; lastTs = ts;
+        var t = total();
+        var dur = Math.max(t, 0.4) / 6; // speed up: 1 real ms → visible
+        progress += dt / dur;
+        if (progress >= 1) {
+          if (t <= FRAME_MS) done++; else dropped++;
+          frameIdx++; progress = 0;
+        }
+        drawRace();
+        raf = requestAnimationFrame(loop);
+      }
+      toggle.addEventListener("click", function () {
+        running = !running;
+        toggle.textContent = running ? "⏸ Pause the race" : "▶ Run the race";
+        if (running) { lastTs = 0; raf = requestAnimationFrame(loop); }
+        else if (raf) cancelAnimationFrame(raf);
+      });
+      window.addEventListener("resize", drawRace);
+      updateBudget();
+      drawRace();
+      if (REDUCED) { progress = 1; drawRace(); }
+    })();
+
+    /* ============ QUIZ ============ */
+    (function () {
+      var box = document.getElementById("quizBox");
+      var scoreEl = document.getElementById("quiz-score");
+      if (!box) return;
+      var QS = [
+        { q: "A moving-average filter works because…", opts: ["Noise averages toward zero while the slow signal survives", "It deletes every second sample", "It makes the signal louder"], a: 0, why: "Random wiggles cancel in an average; a slowly changing signal barely changes across the window, so it passes through. That is a low-pass filter." },
+        { q: "What makes an IIR filter risky?", opts: ["It uses too many taps", "Its feedback can make the output grow forever if the gain reaches 1 or more", "It only works at 48 kHz"], a: 1, why: "Feedback recirculates the output. Gain below 1 fades safely; at or above 1 the echo never dies — instability." },
+        { q: "Convolution with a room's impulse response gives you…", opts: ["Auto-tune", "Reverb that sounds like that room", "Noise cancellation"], a: 1, why: "The kernel encodes the room's reflections; flip-slide-multiply-add applies those reflections to any dry recording. Same operation as filtering, longer kernel." },
+        { q: "Why do engineers bother with the frequency domain?", opts: ["It looks prettier", "Filtering becomes simple multiplication there, and the FFT makes it fast", "Speakers only understand frequencies"], a: 1, why: "Convolution in time equals multiplication in frequency. Via FFT, huge filters cost a fraction of the direct arithmetic." },
+        { q: "In Q15 fixed-point, the integer 16384 represents…", opts: ["16384.0", "0.5", "−0.5"], a: 1, why: "The scale is 2¹⁵ = 32768; 16384 / 32768 = 0.5. The decimal point is implied by agreement, not stored." },
+        { q: "Your audio chain needs 12 ms of processing per 10 ms frame. What happens?", opts: ["Nothing — the chip catches up later", "It runs at 83% speed and sounds lower-pitched", "Frames finish late and the output underruns — gaps and clicks"], a: 2, why: "Real-time audio has a hard deadline every frame. Miss it and the buffer runs dry: an underrun. The fixes are optimization, a smaller algorithm, or a faster chip." }
+      ];
+      var answered = 0, correct = 0;
+      QS.forEach(function (item, qi) {
+        var div = document.createElement("div");
+        div.className = "quiz-q";
+        var p = document.createElement("p");
+        p.className = "q"; p.textContent = (qi + 1) + ". " + item.q;
+        div.appendChild(p);
+        var opts = document.createElement("div");
+        opts.className = "opts";
+        item.opts.forEach(function (text, oi) {
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "opt"; b.textContent = text;
+          b.addEventListener("click", function () {
+            if (div.classList.contains("answered")) return;
+            div.classList.add("answered");
+            answered++;
+            if (oi === item.a) { b.classList.add("right"); correct++; }
+            else {
+              b.classList.add("wrong");
+              opts.children[item.a].classList.add("right");
+            }
+            scoreEl.textContent = "Score: " + correct + " / " + QS.length + (answered === QS.length ? (correct === QS.length ? " — perfect. You think like a DSP engineer now." : " — revisit any section above and the labs will make it click.") : "");
+          });
+          opts.appendChild(b);
+        });
+        div.appendChild(opts);
+        var why = document.createElement("p");
+        why.className = "why"; why.textContent = item.why;
+        div.appendChild(why);
+        box.appendChild(div);
+      });
+    })();
+    </script>
+  </body>
+</html>
